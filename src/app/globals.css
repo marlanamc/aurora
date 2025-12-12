@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* macOS-native styling */
+:root {
+  /* Native macOS vibrancy and blur effects */
+  --macos-blur: blur(40px);
+  --macos-vibrancy: rgba(255, 255, 255, 0.7);
+}
+
+/* Smooth scrolling for the whole app */
+* {
+  @apply scroll-smooth;
+}
+
+/* Remove default focus outline, use macOS-style blue ring */
+*:focus {
+  @apply outline-none ring-2 ring-macos-blue ring-offset-2;
+}
+
+/* Custom scrollbar styling (macOS-like) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-macos-gray-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-macos-gray-500;
+}
+
+/* macOS-style text selection */
+::selection {
+  @apply bg-macos-blue text-white;
+}
+
+/* Disable text selection on non-text elements (more native feel) */
+button, .no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* macOS-style shadows for cards and tiles */
+.macos-card {
+  @apply bg-white rounded-macos shadow-macos;
+}
+
+.macos-card:hover {
+  @apply shadow-macos-hover;
+}
+
+/* Glass morphism effect (like macOS Big Sur+) */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+}
+
+/* Smooth transitions for interactive elements */
+.interactive {
+  @apply transition-all duration-200 ease-out;
+}
+
+/* macOS-style button */
+.macos-button {
+  @apply px-4 py-2 rounded-lg bg-macos-blue text-white font-medium;
+  @apply hover:bg-opacity-90 active:scale-95;
+  @apply transition-all duration-150;
+}
+
+/* macOS-style input */
+.macos-input {
+  @apply px-3 py-2 rounded-lg border border-macos-gray-300;
+  @apply focus:border-macos-blue focus:ring-2 focus:ring-macos-blue;
+  @apply transition-all duration-150;
+}

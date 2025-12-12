@@ -1,0 +1,56 @@
+# Cargo.toml is Rust's package manager file (like package.json for npm)
+# "Cargo" is Rust's build system and package manager
+
+[package]
+name = "aurora-os"
+version = "0.1.0"
+description = "A visual, ADHD-friendly file management layer for macOS"
+authors = ["you"]
+edition = "2021"  # Rust edition - like ECMAScript versions for JavaScript
+
+# Dependencies are called "crates" in Rust
+# Each crate can have "features" - optional functionality you can enable
+[dependencies]
+# Tauri core - the bridge between Rust and your Next.js frontend
+tauri = { version = "2", features = [] }
+
+# Serde - Rust's JSON serialization library (converts Rust types ↔ JSON)
+# This lets us send data between Rust and JavaScript
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"  # For working with JSON values
+
+# Tauri plugins - pre-built functionality
+tauri-plugin-fs = "2"          # File system access
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }  # SQLite database
+tauri-plugin-opener = "2"      # Open files in Finder/default apps
+tauri-plugin-shell = "2"       # Run shell commands (for qlmanage, etc.)
+
+# For file watching (detects when files change)
+notify = "6"                   # Cross-platform file watcher
+notify-debouncer-full = "0.3"  # Prevents too many events firing at once
+
+# For reading macOS extended attributes (Finder tags, colors)
+xattr = "1"                    # Read/write extended file attributes
+
+# For async/await in Rust (like JavaScript promises)
+tokio = { version = "1", features = ["full"] }
+
+# For working with file paths
+walkdir = "2"                  # Recursively walk directories
+
+# For date/time handling
+chrono = "0.4"                 # DateTime library for Rust
+
+# For working with plists (macOS property list files - Finder tags are stored as plists)
+plist = "1"                    # Parse/generate plist files
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+# This tells Cargo to optimize for small binary size in release builds
+[profile.release]
+panic = "abort"      # Smaller binary size
+codegen-units = 1    # Better optimization (slower compile, faster runtime)
+lto = true           # Link-Time Optimization - makes binary smaller and faster
+opt-level = "z"      # Optimize for size
+strip = true         # Remove debug symbols from binary
