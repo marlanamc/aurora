@@ -72,6 +72,13 @@ export function NotebookWidget({
     createdAt: nb.createdAt ?? Date.now(),
   }))
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null)
+  
+  // Also allow opening preset picker by clicking the color button
+  const handleColorButtonClick = (e: React.MouseEvent, notebookId: string) => {
+    e.stopPropagation()
+    e.preventDefault()
+    setShowColorPicker(showColorPicker === notebookId ? null : notebookId)
+  }
 
   const addNotebook = async () => {
     try {
@@ -210,25 +217,53 @@ export function NotebookWidget({
                       }}
                     />
 
-                    {/* Color Picker Button - Larger and easier to click */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        setShowColorPicker(showColorPicker === notebook.id ? null : notebook.id)
-                      }}
-                      className="absolute bottom-3 right-3 p-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all z-20 pointer-events-auto cursor-pointer"
-                      title="Change color"
-                      style={{ pointerEvents: 'auto' }}
-                    >
-                      <div
-                        className="w-5 h-5 rounded border-2"
-                        style={{
-                          background: notebook.color,
-                          borderColor: 'rgba(0,0,0,0.2)',
+                    {/* Color Picker - Native input with preset fallback */}
+                    <div className="absolute bottom-3 right-3 z-20 flex items-center gap-2">
+                      {/* Native Color Picker */}
+                      <label
+                        className="p-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
+                        title="Pick any color"
+                        style={{ pointerEvents: 'auto' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
                         }}
-                      />
-                    </button>
+                      >
+                        <input
+                          type="color"
+                          value={notebook.color}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            updateNotebookColor(notebook.id, e.target.value)
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                          }}
+                        />
+                        <div
+                          className="w-5 h-5 rounded border-2 pointer-events-none"
+                          style={{
+                            background: notebook.color,
+                            borderColor: 'rgba(0,0,0,0.2)',
+                          }}
+                        />
+                      </label>
+                      
+                      {/* Preset Colors Button */}
+                      <button
+                        onClick={(e) => handleColorButtonClick(e, notebook.id)}
+                        className="p-1.5 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all"
+                        title="Choose from presets"
+                        style={{ pointerEvents: 'auto' }}
+                      >
+                        <div className="w-4 h-4 rounded" style={{ 
+                          background: `linear-gradient(45deg, ${NOTEBOOK_COLORS[0]}, ${NOTEBOOK_COLORS[1]}, ${NOTEBOOK_COLORS[2]})`,
+                          border: '1px solid rgba(0,0,0,0.2)',
+                        }} />
+                      </button>
+                    </div>
 
                     {/* Remove Button - Always visible but subtle */}
                     <button
@@ -244,7 +279,7 @@ export function NotebookWidget({
                       <X size={12} className="text-white" />
                     </button>
 
-                    {/* Color Picker Dropdown */}
+                    {/* Preset Color Picker Dropdown - Alternative option */}
                     {showColorPicker === notebook.id && (
                       <>
                         {/* Backdrop to close on outside click */}
@@ -271,6 +306,9 @@ export function NotebookWidget({
                             e.preventDefault()
                           }}
                         >
+                          <div className="text-xs font-semibold mb-2 opacity-70" style={{ color: theme.colors.textSecondary }}>
+                            Or choose a preset:
+                          </div>
                           <div className="grid grid-cols-5 gap-3">
                             {NOTEBOOK_COLORS.map((color) => (
                               <button
@@ -279,6 +317,7 @@ export function NotebookWidget({
                                   e.stopPropagation()
                                   e.preventDefault()
                                   updateNotebookColor(notebook.id, color)
+                                  setShowColorPicker(null)
                                 }}
                                 className="w-8 h-8 rounded-lg border-2 transition-all hover:scale-125 active:scale-110 cursor-pointer shadow-sm"
                                 style={{
