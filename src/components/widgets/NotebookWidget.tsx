@@ -13,7 +13,7 @@ type Notebook = {
   path: string
   name: string
   color: string
-  createdAt: number
+  createdAt?: number
 }
 
 const NOTEBOOK_COLORS = [
@@ -29,8 +29,11 @@ const NOTEBOOK_COLORS = [
   '#98D8C8', // Mint
 ]
 
-function formatDate(timestamp: number): string {
+function formatDate(timestamp: number | undefined): string | null {
+  if (!timestamp || isNaN(timestamp)) return null
   const date = new Date(timestamp)
+  if (isNaN(date.getTime())) return null
+  
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
@@ -62,7 +65,12 @@ export function NotebookWidget({
   mergeWidgetData: <T extends Record<string, unknown>>(id: string, partial: Partial<T>, fallback: T) => void
 }) {
   const data = getWidgetData<{ notebooks: Notebook[] }>(widgetId, { notebooks: [] })
-  const notebooks = Array.isArray(data?.notebooks) ? data.notebooks : []
+  // Migrate existing notebooks without createdAt
+  const notebooksRaw = Array.isArray(data?.notebooks) ? data.notebooks : []
+  const notebooks = notebooksRaw.map((nb) => ({
+    ...nb,
+    createdAt: nb.createdAt ?? Date.now(),
+  }))
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null)
 
   const addNotebook = async () => {
@@ -168,8 +176,8 @@ export function NotebookWidget({
                           fontFamily: 'Georgia, serif',
                           fontSize: '12px',
                           fontWeight: 500,
-                          color: 'rgba(255,255,255,0.85)',
-                          textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                          color: 'rgba(0,0,0,0.8)',
+                          textShadow: '0 1px 2px rgba(255,255,255,0.5)',
                           letterSpacing: '0.3px',
                           transform: 'rotate(-1deg)',
                           lineHeight: '1.4',
@@ -259,44 +267,39 @@ export function NotebookWidget({
                     )}
                   </div>
 
-                  {/* Label Below Notebook - Just show date */}
-                  <div className="mt-2 text-center">
-                    <div
-                      className="text-xs opacity-60"
-                      style={{ color: theme.colors.textSecondary }}
-                    >
-                      {formatDate(notebook.createdAt)}
+                  {/* Label Below Notebook - Just show date if available */}
+                  {formatDate(notebook.createdAt) && (
+                    <div className="mt-2 text-center">
+                      <div
+                        className="text-xs opacity-60"
+                        style={{ color: theme.colors.textSecondary }}
+                      >
+                        {formatDate(notebook.createdAt)}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
 
-            {/* Add New Notebook Button */}
+            {/* Add New Notebook Button - Small plus icon */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: notebooks.length * 0.05 }}
-              className="relative group"
+              className="relative group flex items-end justify-center"
             >
               <button
                 onClick={addNotebook}
-                className="relative w-full aspect-[3/4] rounded-lg border-2 border-dashed transition-all hover:border-solid hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center overflow-hidden"
+                className="w-12 h-12 rounded-full border-2 border-dashed transition-all hover:border-solid hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center mb-2"
                 style={{
-                  borderColor: theme.colors.primary,
-                  color: theme.colors.primary,
+                  borderColor: theme.colors.textSecondary,
+                  color: theme.colors.textSecondary,
                 }}
+                title="Add Notebook"
               >
-                <Plus size={32} strokeWidth={2} />
+                <Plus size={20} strokeWidth={2} />
               </button>
-              <div className="mt-2 text-center">
-                <div
-                  className="text-xs font-medium"
-                  style={{ color: theme.colors.primary }}
-                >
-                  New...
-                </div>
-              </div>
             </motion.div>
           </div>
         )}
