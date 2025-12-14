@@ -11,28 +11,37 @@
 //
 // ============================================================================
 
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher, Event, EventKind};
-use notify_debouncer_full::{new_debouncer, Debouncer, FileIdMap};
+use notify::{RecursiveMode, Watcher};
+use notify_debouncer_full::{new_debouncer, DebouncedEvent};
 // Debouncer prevents event spam
 // When you save a file, your editor might trigger 10 events in 1 second
 // The debouncer waits a bit and only notifies us once
 
 use std::path::Path;
+use std::sync::{mpsc, Mutex};
 use std::time::Duration;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, State};
+use crate::commands::FileInfo;
 
 // ============================================================================
 // FILE WATCHER SETUP
 // ============================================================================
 
-pub async fn start_watching(app_handle: AppHandle) {
-    println!("👀 Starting file system watcher...");
+#[derive(Default)]
+pub struct WatcherState {
+    stop_tx: Mutex<Option<mpsc::Sender<()>>>,
+}
 
-    // The directories we want to watch (from your requirements)
-    let watch_paths = vec![
-        "/Users/marlanacreed/Downloads/Projects",
-        "/Users/marlanacreed/Documents/My Folders",
-    ];
+fn stop_watching_inner(state: &WatcherState) {
+    if let Ok(mut guard) = state.stop_tx.lock() {
+        if let Some(tx) = guard.take() {
+            let _ = tx.send(());
+        }
+    }
+}
+
+fn start_watching_inner(app_handle: AppHandle, watch_paths: Vec<String>) -> mpsc::Sender<()> {
+    let (stop_tx, stop_rx) = mpsc::channel::<()>();
 
     // RUST ASYNC PATTERN:
     // Spawn this on a separate thread so it doesn't block
@@ -45,7 +54,7 @@ pub async fn start_watching(app_handle: AppHandle) {
         let mut debouncer = match new_debouncer(
             Duration::from_secs(2),  // Wait time
             None,  // No separate queue thread
-            move |result: Result<Vec<Event>, Vec<notify::Error>>| {
+            move |result: Result<Vec<DebouncedEvent>, Vec<notify::Error>>| {
                 // CLOSURE (like arrow function in JS):
                 // This runs whenever file events happen
 
@@ -73,7 +82,7 @@ pub async fn start_watching(app_handle: AppHandle) {
 
         // Watch each directory recursively
         for path in watch_paths {
-            let path_obj = Path::new(path);
+            let path_obj = Path::new(&path);
 
             if !path_obj.exists() {
                 eprintln!("⚠️  Path does not exist: {}", path);
@@ -90,26 +99,90 @@ pub async fn start_watching(app_handle: AppHandle) {
 
         println!("👀 File watcher active!");
 
-        // Keep the watcher alive
-        // Without this, the watcher would be dropped and stop working
-        // In Rust, when a value goes out of scope, it's dropped (deallocated)
+        // Keep the watcher alive until stop is requested.
         loop {
-            std::thread::sleep(Duration::from_secs(60));
-            // Sleep for 60 seconds, then loop again
-            // This keeps the thread (and watcher) alive
+            match stop_rx.recv_timeout(Duration::from_secs(60)) {
+                Ok(_) => break,
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
         }
+
+        println!("👋 File watcher stopped");
     });
+
+    stop_tx
+}
+
+#[tauri::command]
+pub async fn watch_set_paths(
+    app_handle: AppHandle,
+    state: State<'_, WatcherState>,
+    paths: Vec<String>,
+) -> Result<(), String> {
+    let mut watch_paths: Vec<String> = paths
+        .into_iter()
+        .map(|p| p.trim().to_string())
+        .filter(|p| !p.is_empty())
+        .collect();
+    watch_paths.sort();
+    watch_paths.dedup();
+
+    stop_watching_inner(&state);
+
+    if watch_paths.is_empty() {
+        return Ok(());
+    }
+
+    let mut valid_paths: Vec<String> = Vec::new();
+    for path in watch_paths {
+        let path_obj = Path::new(&path);
+        if !path_obj.is_absolute() {
+            eprintln!("⚠️  Watch path must be absolute, skipping: {}", path);
+            continue;
+        }
+        if !path_obj.exists() {
+            eprintln!("⚠️  Watch path does not exist, skipping: {}", path);
+            continue;
+        }
+        if !path_obj.is_dir() {
+            eprintln!("⚠️  Watch path is not a directory, skipping: {}", path);
+            continue;
+        }
+        valid_paths.push(path);
+    }
+
+    if valid_paths.is_empty() {
+        return Err("No valid watch paths provided".to_string());
+    }
+
+    println!("👀 Starting file system watcher for: {:?}", valid_paths);
+    let tx = start_watching_inner(app_handle, valid_paths);
+    if let Ok(mut guard) = state.stop_tx.lock() {
+        *guard = Some(tx);
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn watch_stop(state: State<'_, WatcherState>) -> Result<(), String> {
+    stop_watching_inner(&state);
+    Ok(())
 }
 
 // ============================================================================
 // EVENT HANDLING
 // ============================================================================
 
-fn handle_file_event(app_handle: &AppHandle, event: Event) {
+fn handle_file_event(app_handle: &AppHandle, event: DebouncedEvent) {
     // PATTERN MATCHING on event kind
     // Different event types require different actions
 
-    match event.kind {
+    // DebouncedEvent wraps the notify event with additional metadata
+    use notify::EventKind;
+
+    match event.event.kind {
         EventKind::Create(_) => {
             // New file created!
             println!("📝 File created: {:?}", event.paths);
@@ -119,8 +192,19 @@ fn handle_file_event(app_handle: &AppHandle, event: Event) {
             // 2. Insert into database
             // 3. Emit event to frontend to update UI
 
+            if let Ok(mut conn) = crate::db::get_connection(app_handle) {
+                for path in &event.paths {
+                    if let Some(file_info) = path_to_file_info(path) {
+                        let _ = crate::db::upsert_files(&mut conn, &[file_info]);
+                    }
+                }
+            }
+
             // Emit to frontend
-            app_handle.emit("file-created", event.paths.clone()).ok();
+            let paths: Vec<String> = event.paths.iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect();
+            app_handle.emit("file-created", paths).ok();
             // .ok() converts Result to Option (we don't care if emit fails)
         }
 
@@ -133,7 +217,18 @@ fn handle_file_event(app_handle: &AppHandle, event: Event) {
             // 2. Regenerate thumbnail if needed
             // 3. Emit event to frontend
 
-            app_handle.emit("file-modified", event.paths.clone()).ok();
+            if let Ok(mut conn) = crate::db::get_connection(app_handle) {
+                for path in &event.paths {
+                    if let Some(file_info) = path_to_file_info(path) {
+                        let _ = crate::db::upsert_files(&mut conn, &[file_info]);
+                    }
+                }
+            }
+
+            let paths: Vec<String> = event.paths.iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect();
+            app_handle.emit("file-modified", paths).ok();
         }
 
         EventKind::Remove(_) => {
@@ -145,13 +240,57 @@ fn handle_file_event(app_handle: &AppHandle, event: Event) {
             // 2. Delete cached thumbnail
             // 3. Emit event to frontend
 
-            app_handle.emit("file-removed", event.paths.clone()).ok();
+            if let Ok(conn) = crate::db::get_connection(app_handle) {
+                for path in &event.paths {
+                    let path_str = path.to_string_lossy().to_string();
+                    let _ = crate::db::delete_file(&conn, &path_str);
+                }
+            }
+
+            let paths: Vec<String> = event.paths.iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect();
+            app_handle.emit("file-removed", paths).ok();
         }
 
         _ => {
             // Other events (access, etc.) - we don't care about these for now
         }
     }
+}
+
+fn system_time_to_unix(time: std::time::SystemTime) -> i64 {
+    time.duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64
+}
+
+fn path_to_file_info(path: &Path) -> Option<FileInfo> {
+    if !path.exists() || !path.is_file() {
+        return None;
+    }
+
+    let metadata = std::fs::metadata(path).ok()?;
+    let path_str = path.to_string_lossy().to_string();
+    let name = path.file_name()?.to_string_lossy().to_string();
+    let file_type = path.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
+
+    let created_at = metadata.created().ok().map(system_time_to_unix).unwrap_or(0);
+    let modified_at = metadata.modified().ok().map(system_time_to_unix).unwrap_or(0);
+
+    Some(FileInfo {
+        id: None,
+        path: path_str,
+        name,
+        file_type,
+        size: metadata.len(),
+        created_at,
+        modified_at,
+        last_opened_at: None,
+        thumbnail_path: None,
+        finder_tags: Vec::new(),
+        finder_colors: Vec::new(),
+    })
 }
 
 // ============================================================================

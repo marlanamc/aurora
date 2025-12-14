@@ -13,6 +13,8 @@
 
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { createElement } from 'react'
+import { getFileTypeIcon, type IconComponent } from './icons'
 
 // ============================================================================
 // TYPE DEFINITIONS (matching Rust types)
@@ -46,6 +48,16 @@ export interface FileMetadata {
   energy_level?: string
 }
 
+export interface AppleCalendarEvent {
+  calendar: string
+  uid: string
+  title: string
+  start_ms: number
+  end_ms: number
+  all_day: boolean
+  location?: string
+}
+
 // Map of Finder color codes to names
 export const FINDER_COLORS = {
   0: { name: 'None', hex: '#8E8E93' },
@@ -69,6 +81,27 @@ export async function greet(name: string): Promise<string> {
   return await invoke<string>('greet', { name })
   // invoke<ReturnType>('command_name', { parameters })
   // This calls the #[tauri::command] fn greet() in Rust
+}
+
+export async function appleCalendarListEvents(startMs: number, endMs: number): Promise<AppleCalendarEvent[]> {
+  try {
+    return await invoke<AppleCalendarEvent[]>('apple_calendar_list_events', { startMs, endMs })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const looksLikeNotTauri =
+      message.toLowerCase().includes('tauri') ||
+      message.toLowerCase().includes('__tauri') ||
+      message.toLowerCase().includes('invoke') ||
+      message.toLowerCase().includes('not in tauri')
+
+    if (looksLikeNotTauri || !isTauri()) {
+      throw new Error('Apple Calendar is only available in the macOS desktop app (run `npm run tauri:dev`).')
+    }
+
+    throw new Error(
+      `Apple Calendar failed: ${message}\nIf this is a permissions issue, enable Aurora OS in System Settings → Privacy & Security → Automation (Calendar).`
+    )
+  }
 }
 
 /**
@@ -128,6 +161,49 @@ export async function searchFiles(query: string): Promise<FileInfo[]> {
 }
 
 // ============================================================================
+// DATABASE COMMANDS (Phase 2)
+// ============================================================================
+
+/**
+ * Get all files from database
+ * (Alternative to getAllFiles - loads from persistent storage)
+ */
+export async function dbGetAllFiles(): Promise<FileInfo[]> {
+  return await invoke<FileInfo[]>('db_get_all_files')
+}
+
+/**
+ * Search files in database using FTS5
+ * @param query - Search query (supports FTS5 syntax)
+ */
+export async function dbSearchFiles(query: string): Promise<FileInfo[]> {
+  return await invoke<FileInfo[]>('db_search_files', { query })
+}
+
+/**
+ * Get total file count from database
+ */
+export async function dbGetFileCount(): Promise<number> {
+  return await invoke<number>('db_get_file_count')
+}
+
+export type ResurfaceReason = 'Forgotten' | 'Seasonal Echo' | 'Random Delight'
+
+export type ResurfacedFile = {
+  file: FileInfo
+  reason: ResurfaceReason
+  explanation: string
+}
+
+export async function dbGetResurfacedFiles(count = 3): Promise<ResurfacedFile[]> {
+  return await invoke<ResurfacedFile[]>('db_get_resurfaced_files', { count })
+}
+
+export async function dbRecordOpen(path: string): Promise<void> {
+  await invoke('db_record_open', { path })
+}
+
+// ============================================================================
 // EVENT LISTENERS (Real-time updates from Rust)
 // ============================================================================
 
@@ -170,14 +246,15 @@ export async function onFileRemoved(
 // OPENER PLUGIN (Open files in Finder/apps)
 // ============================================================================
 
-import { open } from '@tauri-apps/plugin-opener'
+import { openPath, revealItemInDir } from '@tauri-apps/plugin-opener'
 
 /**
  * Open a file with its default application
  * @param path - File path to open
  */
 export async function openFile(path: string): Promise<void> {
-  await open(path)
+  await openPath(path)
+  await safeInvoke<void>('db_record_open', { path })
 }
 
 /**
@@ -185,10 +262,7 @@ export async function openFile(path: string): Promise<void> {
  * @param path - File path to reveal
  */
 export async function revealInFinder(path: string): Promise<void> {
-  // On macOS, we can use 'open -R' to reveal in Finder
-  await open(path)
-  // Note: In a future update, we might add a custom Rust command
-  // that uses NSWorkspace to properly "reveal" the file
+  await revealItemInDir(path)
 }
 
 // ============================================================================
@@ -227,55 +301,22 @@ export function formatDate(timestamp: number): string {
 }
 
 /**
- * Get file icon based on extension
- * For MVP, we'll use emoji. Later, we can use macOS file icons
+ * Get a file icon React element based on extension.
+ * Uses Lucide React icons for a professional, consistent look.
+ *
+ * Defaults to `size: '1em'` so it scales with `text-*` classes.
  */
-export function getFileIcon(fileType: string): string {
-  const iconMap: Record<string, string> = {
-    // Documents
-    pdf: '📄',
-    doc: '📝',
-    docx: '📝',
-    txt: '📝',
-    md: '📝',
-
-    // Images
-    jpg: '🖼️',
-    jpeg: '🖼️',
-    png: '🖼️',
-    gif: '🖼️',
-    svg: '🎨',
-
-    // Code
-    js: '💛',
-    ts: '💙',
-    tsx: '💙',
-    jsx: '💛',
-    py: '🐍',
-    rs: '🦀',
-    go: '🐹',
-
-    // Archives
-    zip: '📦',
-    rar: '📦',
-    tar: '📦',
-    gz: '📦',
-
-    // Media
-    mp3: '🎵',
-    mp4: '🎬',
-    mov: '🎬',
-    avi: '🎬',
-
-    // Design
-    psd: '🎨',
-    ai: '🎨',
-    sketch: '🎨',
-    fig: '🎨',
-    figma: '🎨',
-  }
-
-  return iconMap[fileType.toLowerCase()] || '📄'
+export function getFileIcon(
+  fileType: string,
+  props: Parameters<IconComponent>[0] = {}
+) {
+  const Icon = getFileTypeIcon(fileType)
+  const { size, strokeWidth, ...rest } = props
+  return createElement(Icon, {
+    size: size ?? '1em',
+    strokeWidth: strokeWidth ?? 2,
+    ...rest,
+  })
 }
 
 // ============================================================================
@@ -286,7 +327,9 @@ export function getFileIcon(fileType: string): string {
  * Check if we're running in Tauri (vs browser during dev)
  */
 export function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window
+  if (typeof window === 'undefined') return false
+  const w = window as unknown as Record<string, unknown>
+  return Boolean(w.__TAURI__ || w.__TAURI_INTERNALS__)
 }
 
 /**
@@ -307,6 +350,18 @@ export async function safeInvoke<T>(
     console.error(`Error invoking ${command}:`, error)
     return null
   }
+}
+
+// ============================================================================
+// FILE WATCHER (Rust -> JS events + control)
+// ============================================================================
+
+export async function watchSetPaths(paths: string[]): Promise<void> {
+  await safeInvoke<void>('watch_set_paths', { paths })
+}
+
+export async function watchStop(): Promise<void> {
+  await safeInvoke<void>('watch_stop')
 }
 
 // ============================================================================

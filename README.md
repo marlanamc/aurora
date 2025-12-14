@@ -1,220 +1,325 @@
-# Aurora OS 🌟
+# **Aurora OS ✨**
 
-A dynamic, ADHD-native "living Finder" that keeps your files visible, memorable, and emotionally anchored.
+*A visual memory layer and behavior engine for ADHD, built on top of your Mac.*
 
-## What is Aurora OS?
+Aurora OS reimagines your file system as something alive, visible, and emotionally intuitive. Instead of losing files in deep folder hierarchies or forgetting projects that mattered, Aurora brings your digital world back into view using color, context, emotional metadata, resurfacing, and micro-behavior loops.
 
-Aurora OS is a visual memory layer that sits on top of your existing Mac file system. It transforms your everyday files into an interactive, colorful, dynamic dashboard that matches the way your ADHD brain actually stores and retrieves information.
+This is not a prettier Finder.
+It is a **cognitive scaffold** designed for how ADHD brains store, recall, and act on information.
 
-### Key Features (MVP)
+---
 
-1. **File Indexing Engine** - Automatically scans and indexes your selected directories
-2. **Tile-Based Home Screen** - Large, visual tiles representing your files
-3. **Daily Resurfacing** - "Remember This?" carousel shows forgotten files
-4. **Emotional Metadata** - Tag files with mood, season, vibe, location
-5. **Recents Feed** - Always see your latest activity
-6. **Tile Clusters** - Visual groupings like "Ideas I Started", "In Progress"
-7. **Direct Finder Integration** - Click to open in Finder or default app
+## 🌈 **What Is Aurora OS?**
 
-## Tech Stack
+Aurora OS transforms your existing Mac directories into a dynamic, visually rich dashboard that mirrors the way ADHD memory actually works. Your files appear as tiles, clusters, emotional worlds, resurfaced memories, and ongoing quests that reinforce momentum.
 
-- **Frontend**: Next.js 14, React, Tailwind CSS, Framer Motion
-- **Desktop**: Tauri 2.0 (Rust)
-- **Database**: SQLite with FTS5 (full-text search)
-- **Styling**: macOS-native design language
+It’s part Finder, part memory prosthetic, part motivational engine.
 
-## Getting Started
+---
 
-### Prerequisites
+## ✨ **Core Features (MVP)**
 
-1. **Rust** (for Tauri backend)
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   source $HOME/.cargo/env
-   ```
+### **1. File Indexing Engine**
 
-2. **Node.js** (v18 or higher)
-   - Download from https://nodejs.org/
+Automatically scans selected directories and stores metadata, thumbnails, tags, and timestamps.
 
-3. **Xcode Command Line Tools**
-   ```bash
-   xcode-select --install
-   ```
+### **2. Visual Tile Home Screen**
 
-### Installation
+Files become large, colorful, glanceable tiles instead of text rows.
 
-1. Clone this repository (or you're already here!)
+### **3. “Remember This?” Resurfacing Engine**
 
-2. Install Node dependencies:
-   ```bash
-   npm install
-   ```
+Daily resurfacing of forgotten or seasonally relevant files, using:
 
-3. Install Tauri CLI:
-   ```bash
-   cargo install tauri-cli@^2.0.0
-   ```
+* Forgotten Score
+* Seasonal Echo
+* Random Delight triggers
 
-### Development
+### **4. Emotional Metadata Layer**
 
-Run the development server:
+Files can hold emotional tags (mood, season, vibe, place).
+Your brain remembers emotion before filename—Aurora uses that.
+
+### **5. Recency Feed**
+
+A clean sidebar showing your latest file interactions.
+
+### **6. Visual Clusters**
+
+Not folder-based, but meaning-based:
+
+* In Progress
+* Ideas I Started
+* Unfinished Projects
+* Downloads I Forgot
+
+### **7. Finder-Compatible**
+
+Open any tile directly in Finder or its default application.
+
+### **8. Apple Calendar (Read-only, macOS)**
+
+Aurora can display your **today** events from Apple Calendar inside the app. The first time you load it, macOS will ask for **Automation** permission to allow Aurora to control Calendar (read-only is enforced by Aurora by not writing any events).
+
+---
+
+## 🧠 **Vision Features (Coming Soon)**
+
+These aren’t included in MVP but guide the design philosophy.
+
+### **• Core Values Mapping**
+
+Tie daily micro-actions to values like *Financial Stability*, *Law School*, *Peace*, or *Leaving Hospitality*.
+
+### **• Application Heat Map**
+
+A visual behavior tracker for job applications or other daily habits.
+
+### **• Resistance Selector**
+
+Choose: Overwhelm, Fear, Boredom, Paralysis, Imposter Syndrome.
+Aurora responds with a micro-action tailored to your emotional state.
+
+These form the backbone of Aurora as a **behavior engine**.
+
+---
+
+## 🛠️ **Tech Stack**
+
+* **Frontend:** Next.js 14, React, Tailwind CSS, Framer Motion
+* **Desktop Shell:** Tauri 2.0 (Rust)
+* **Database:** SQLite + FTS5 for full-text search
+* **Design:** macOS-inspired visual language
+
+---
+
+## 🚀 **Getting Started**
+
+> **New to Aurora?** Check out [USER_GUIDE.md](./USER_GUIDE.md) for a complete user guide with step-by-step instructions, tips, and troubleshooting.
+
+### **Prerequisites**
+
+#### 1. Rust (required for Tauri)
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+```
+
+#### 2. Node.js (v18+)
+
+Download from [https://nodejs.org/](https://nodejs.org/)
+
+#### 3. Xcode Command Line Tools
+
+```bash
+xcode-select --install
+```
+
+---
+
+## 📦 **Installation**
+
+Clone the repo, then install dependencies:
+
+```bash
+npm install
+```
+
+Install the Tauri CLI:
+
+```bash
+cargo install tauri-cli@^2.0.0
+```
+
+---
+
+## 🧪 **Development**
+
+Run Aurora in dev mode:
 
 ```bash
 npm run tauri:dev
 ```
 
-This will:
-- Start the Next.js frontend (http://localhost:3000)
-- Compile the Rust backend
-- Launch the Aurora OS desktop app
+This boots:
 
-### Building for Production
+* Next.js frontend at `http://localhost:3000`
+* Rust backend
+* The Aurora OS desktop shell
+
+---
+
+## 🏗️ **Build for Production**
 
 ```bash
 npm run tauri:build
 ```
 
-The built app will be in `src-tauri/target/release/bundle/`
+Your macOS app bundle will appear in:
 
-## Project Structure
+```
+src-tauri/target/release/bundle/
+```
+
+---
+
+## 📁 **Project Structure**
 
 ```
 aurora/
-├── src/                          # Next.js frontend
-│   ├── app/                      # App Router pages
-│   │   ├── layout.tsx           # Root layout
-│   │   ├── page.tsx             # Home page
-│   │   └── globals.css          # Global styles
-│   ├── components/               # React components
-│   │   ├── FileGrid.tsx         # Virtual grid of file tiles
-│   │   ├── FileTile.tsx         # Individual file tile
-│   │   ├── ResurfaceCarousel.tsx # Daily resurfacing UI
-│   │   └── RecentsPanel.tsx     # Recent files sidebar
+├── src/                          
+│   ├── app/                      
+│   │   ├── layout.tsx           
+│   │   ├── page.tsx             
+│   │   └── globals.css          
+│   ├── components/               
+│   │   ├── FileGrid.tsx         
+│   │   ├── FileTile.tsx         
+│   │   ├── ResurfaceCarousel.tsx 
+│   │   └── RecentsPanel.tsx     
 │   └── lib/
-│       └── tauri.ts             # Tauri API utilities
-├── src-tauri/                    # Rust backend
+│       └── tauri.ts             
+├── src-tauri/                    
 │   ├── src/
-│   │   ├── main.rs              # App entry point
-│   │   ├── commands.rs          # Tauri commands (callable from JS)
-│   │   ├── db.rs                # SQLite database
-│   │   └── file_watcher.rs      # File system monitoring
-│   ├── Cargo.toml               # Rust dependencies
-│   └── tauri.conf.json          # Tauri configuration
-├── package.json
-├── next.config.js               # Next.js config (SSG mode)
-└── tailwind.config.js           # Tailwind config (macOS theme)
+│   │   ├── main.rs              
+│   │   ├── commands.rs          
+│   │   ├── db.rs                
+│   │   └── file_watcher.rs      
+│   ├── Cargo.toml               
+│   └── tauri.conf.json          
+└── tailwind.config.js           
 ```
 
-## How It Works
+---
 
-### Rust ↔ JavaScript Bridge
+## 🧩 **How Aurora Works**
 
-Aurora uses Tauri to create a bridge between Rust (backend) and Next.js (frontend):
+### **Rust ↔ JS Bridge**
 
-1. **Rust Commands**: Functions marked with `#[tauri::command]` can be called from JavaScript
-2. **Invoke**: Frontend calls `invoke('command_name', { args })` to execute Rust code
-3. **Events**: Rust emits events like `file-created` that the frontend can listen to
+Tauri exposes Rust functions to the frontend via commands.
 
-Example:
+**JavaScript:**
 
-```typescript
-// JavaScript (Next.js)
+```ts
 import { invoke } from '@tauri-apps/api/core'
 
-const files = await invoke('scan_directories', {
-  directories: ['/Users/you/Documents']
+await invoke('scan_directories', {
+  directories: ['/Users/me/Documents']
 })
 ```
 
+**Rust:**
+
 ```rust
-// Rust (Tauri)
 #[tauri::command]
-pub async fn scan_directories(directories: Vec<String>) -> Result<Vec<FileInfo>, String> {
-  // Scan files and return results
+pub async fn scan_directories(dirs: Vec<String>) -> Result<Vec<FileInfo>, String> {
+  // ...scan and return
 }
 ```
 
-### File Watching
+---
 
-Aurora uses macOS FSEvents (via the `notify` Rust crate) to monitor file changes in real-time:
-- When files are created, modified, or deleted
-- Aurora automatically updates the database
-- The frontend receives events and updates the UI
+## 📡 **Real-Time File Watching**
 
-No polling. No manual refreshing. Just live updates.
+Aurora uses macOS FSEvents (via `notify` crate) to track:
 
-### Database Schema
+* File creation
+* Deletion
+* Renames
+* Tag changes
 
-SQLite stores:
-- **files** - All indexed files with metadata
-- **finder_tags** - macOS Finder tags
-- **file_tags** - Many-to-many relationship
-- **file_metadata** - Your emotional tags (mood, season, vibe)
-- **clusters** - Visual groupings
-- **files_fts** - Full-text search index (FTS5)
+These updates instantly push to the UI.
 
-## Development Roadmap
+No polling. No refresh button.
 
-- [x] **Phase 1**: Environment setup & project structure
-- [ ] **Phase 2**: SQLite database implementation
-- [ ] **Phase 3**: File indexing engine
-- [ ] **Phase 4**: macOS-native tile grid UI
-- [ ] **Phase 5**: macOS deep integration (tags, thumbnails)
-- [ ] **Phase 6**: Resurfacing algorithms
-- [ ] **Phase 7**: Emotional metadata & clustering
-- [ ] **Phase 8**: Search & performance optimization
-- [ ] **Phase 9**: Polish & animations
-- [ ] **Phase 10**: Testing & distribution
+---
 
-## Learning Resources
+## 🗄️ **Database Schema (Simplified)**
 
-### Rust Concepts
-- **Ownership**: Rust tracks who owns each piece of data
-- **Borrowing**: `&variable` lets you "borrow" without taking ownership
-- **Result Type**: `Result<T, E>` for error handling (no exceptions!)
-- **Option Type**: `Option<T>` for nullable values
-- **Pattern Matching**: `match` for handling all cases
-- **Async/Await**: Similar to JavaScript promises
+SQLite tables:
 
-### Tauri Concepts
-- **Commands**: Rust functions callable from JavaScript
-- **Events**: One-way messages from Rust → JavaScript
-- **Plugins**: Pre-built functionality (fs, sql, opener)
-- **State**: Shared state across the app
+* `files` — canonical file metadata
+* `file_metadata` — emotional tags, resurfacing scores
+* `clusters` — visual groupings
+* `finder_tags` — macOS tags
+* `files_fts` — searchable index (FTS5)
 
-## Troubleshooting
+---
 
-### "Command not found: cargo"
-Make sure Rust is in your PATH:
+## 🛣️ **Development Roadmap**
+
+* [x] Project setup & architecture
+* [ ] SQLite schema & migrations
+* [ ] Indexing engine
+* [ ] Real-time file watching
+* [ ] File tile grid
+* [ ] Resurfacing logic
+* [ ] Emotional metadata UI
+* [ ] Search & performance
+* [ ] macOS polish
+* [ ] Packaging & distribution
+
+---
+
+## 📘 Learning Resources
+
+### **Rust Essentials**
+
+* Ownership & borrowing
+* `Result<T, E>` for errors
+* `Option<T>` for nullable values
+* Pattern matching
+* Async/await
+
+### **Tauri Concepts**
+
+* Commands
+* Events
+* Plugins
+* State management
+
+---
+
+## 🧰 Troubleshooting
+
+### Rust not found
+
 ```bash
 source $HOME/.cargo/env
 ```
 
-### Permission errors when accessing files
-Aurora needs Full Disk Access. Go to:
-**System Settings > Privacy & Security > Full Disk Access**
-Add Aurora OS to the list.
+### File access issues
+
+Enable Full Disk Access:
+**System Settings → Privacy & Security → Full Disk Access**
 
 ### Build errors
-Make sure you have the latest Xcode Command Line Tools:
+
+Update Xcode tools:
+
 ```bash
 xcode-select --install
 ```
 
-## Contributing
+---
 
-This is a personal project, but feel free to fork and adapt for your own needs!
+## 🤝 Contributing
 
-## License
-
-MIT
+This is an ADHD-native personal tool, but forks and PRs are welcome.
 
 ---
 
-**Built with ❤️ for ADHD brains**
+## ❤️ Built for ADHD Brains
 
-Aurora OS is designed around how your brain actually works:
-- Visual memory > text lists
-- Movement > static pages
-- Emotion > category
-- Serendipity > discipline
+Aurora is based on cognitive principles that make information stick:
+
+* Visual memory over text
+* Movement over lists
+* Emotion over category
+* Serendipity over discipline
+* Resurfacing over searching
+
+Your files don’t disappear here.
+Your ideas don’t die here.
+Nothing gets lost.

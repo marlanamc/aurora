@@ -46,10 +46,6 @@ export function ResurfaceCarousel({ files }: ResurfaceCarouselProps) {
             <motion.div
               key={file.path}
               className="macos-card p-4 cursor-pointer hover:shadow-macos-hover transition-shadow"
-              initial={{ opacity: 0, y: 20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ delay: index * 0.1 }}
             >
               <div className="flex items-center gap-3 mb-2">
                 <div className="text-3xl">{getFileIcon(file.file_type)}</div>

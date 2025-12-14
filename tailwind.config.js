@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -65,6 +66,10 @@ module.exports = {
       // macOS-style backdrop blur
       backdropBlur: {
         'macos': '40px',
+      },
+      // Grid columns for heat map
+      gridTemplateColumns: {
+        '13': 'repeat(13, minmax(0, 1fr))',
       },
     },
   },

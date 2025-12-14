@@ -53,6 +53,8 @@ fn main() {
         .plugin(tauri_plugin_sql::Builder::default().build())  // SQLite database
         .plugin(tauri_plugin_opener::init())  // Open files in Finder/apps
         .plugin(tauri_plugin_shell::init())   // Run shell commands
+        .plugin(tauri_plugin_dialog::init())  // Native open/save dialogs
+        .manage(file_watcher::WatcherState::default())
 
         // ====================================================================
         // SETUP HOOK - Runs once when app starts
@@ -63,17 +65,21 @@ fn main() {
             // Get the app handle - this lets us interact with the Tauri app
             // In Rust, we often need to clone() things because of ownership rules
             // Don't worry about this for now - just know clone() creates a copy
-            let app_handle = app.handle().clone();
+
+            // RUST OWNERSHIP:
+            // We need to clone app_handle for each async block
+            // because "move" takes ownership, and we can't use it twice
+            let app_handle_db = app.handle().clone();
 
             // Initialize the database when the app starts
             // spawn() runs this on a separate thread so it doesn't block the UI
             // Like Promise.all() or async/await in JavaScript
             tauri::async_runtime::spawn(async move {
                 // RUST OWNERSHIP CONCEPT:
-                // "move" means: move ownership of app_handle into this closure
-                // It's like saying "this closure now owns app_handle"
+                // "move" means: move ownership of app_handle_db into this closure
+                // It's like saying "this closure now owns app_handle_db"
 
-                match db::init_database(&app_handle).await {
+                match db::init_database(&app_handle_db).await {
                     // RUST PATTERN MATCHING:
                     // "match" is like switch/case but way more powerful
                     // It checks all possible outcomes of a Result (Ok or Err)
@@ -88,11 +94,7 @@ fn main() {
                 }
             });
 
-            // Start watching file system for changes
-            tauri::async_runtime::spawn(async move {
-                // We'll implement this in the file_watcher module
-                file_watcher::start_watching(app_handle).await;
-            });
+            // File watching is started by the frontend once the user chooses folders.
 
             // RUST RESULT TYPE:
             // Functions often return Result<T, E>
@@ -115,13 +117,26 @@ fn main() {
             // import { invoke } from '@tauri-apps/api/core'
             // invoke('function_name', { args })
 
-            commands::greet,  // Example command we'll create
+            // File system commands
+            commands::greet,
+            commands::apple_calendar_list_events,
             commands::scan_directories,
             commands::get_all_files,
             commands::get_finder_tags,
             commands::generate_thumbnail,
             commands::update_file_metadata,
             commands::search_files,
+
+            // Database commands (Phase 2)
+            db::db_get_all_files,
+            db::db_search_files,
+            db::db_get_file_count,
+            db::db_record_open,
+            db::db_get_resurfaced_files,
+
+            // File watcher controls
+            file_watcher::watch_set_paths,
+            file_watcher::watch_stop,
         ])
 
         // Build and run the app!
@@ -133,7 +148,7 @@ fn main() {
             // We can handle things like app closing, file drops, etc.
             // For now, we'll just match on events we care about
             match event {
-                tauri::RunEvent::ExitRequested { api, .. } => {
+                tauri::RunEvent::ExitRequested { .. } => {
                     // App is about to close
                     // We could save state, clean up, etc.
                     println!("👋 Aurora OS closing...");

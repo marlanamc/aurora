@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Aurora OS can show your Apple Calendar events inside the app.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Aurora OS needs access to your calendar to display your upcoming events.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Aurora OS needs access to scan files on your Desktop.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Aurora OS needs access to scan files in your Documents.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Aurora OS needs access to scan files in your Downloads.</string>
+  </dict>
+</plist>
+

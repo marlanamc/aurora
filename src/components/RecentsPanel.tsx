@@ -25,7 +25,7 @@ export function RecentsPanel({ files }: RecentsPanelProps) {
   return (
     <div className="p-6">
       <h2 className="text-lg font-semibold text-macos-gray-900 mb-4">
-        Recent Activity
+        Recent Files
       </h2>
 
       {recentFiles.length === 0 ? (

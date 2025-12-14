@@ -18,10 +18,8 @@ use serde::{Deserialize, Serialize};
 // Serialize: Rust type -> JSON (for sending to frontend)
 // Deserialize: JSON -> Rust type (for receiving from frontend)
 
-use std::path::{Path, PathBuf};
-// Path and PathBuf are for working with file system paths
-// Path = borrowed path (like &str)
-// PathBuf = owned path (like String)
+use std::path::Path;
+// Path is for working with file system paths
 
 use walkdir::WalkDir;
 // For recursively walking through directories
@@ -74,6 +72,18 @@ pub struct FileMetadata {
     pub energy_level: Option<String>,
 }
 
+/// Read-only event data from Apple Calendar (macOS).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppleCalendarEvent {
+    pub calendar: String,
+    pub uid: String,
+    pub title: String,
+    pub start_ms: i64,
+    pub end_ms: i64,
+    pub all_day: bool,
+    pub location: Option<String>,
+}
+
 // ============================================================================
 // EXAMPLE COMMAND - Simple greeting
 // ============================================================================
@@ -98,11 +108,178 @@ pub fn greet(name: String) -> String {
 }
 
 // ============================================================================
+// APPLE CALENDAR (macOS) - Read-only via AppleScript
+// ============================================================================
+
+#[tauri::command]
+pub fn apple_calendar_list_events(start_ms: i64, end_ms: i64) -> Result<Vec<AppleCalendarEvent>, String> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (start_ms, end_ms);
+        return Err("Apple Calendar is only available on macOS.".to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if end_ms <= start_ms {
+            return Err("Invalid range: end_ms must be greater than start_ms.".to_string());
+        }
+
+        let start_s = start_ms / 1000;
+        let end_s = end_ms / 1000;
+
+        let script = format!(r#"
+on replaceText(find, repl, txt)
+  set txt to txt as string
+  set AppleScript's text item delimiters to find
+  set parts to every text item of txt
+  set AppleScript's text item delimiters to repl
+  set txt to parts as text
+  set AppleScript's text item delimiters to ""
+  return txt
+end replaceText
+
+on escapeField(t)
+  set t to t as string
+  set t to my replaceText("\\", "\\\\", t)
+  set t to my replaceText(tab, "\\t", t)
+  set t to my replaceText(linefeed, "\\n", t)
+  set t to my replaceText(return, "\\r", t)
+  return t
+end escapeField
+
+set startS to {start_s} as integer
+set endS to {end_s} as integer
+set epoch to date "Thursday, January 1, 1970 00:00:00"
+set startDate to epoch + startS
+set endDate to epoch + endS
+
+tell application "Calendar"
+  set outLines to {{}}
+  repeat with cal in calendars
+    try
+      set evs to (every event of cal whose start date >= startDate and start date < endDate)
+      repeat with ev in evs
+        set calName to my escapeField(name of cal)
+        set uidStr to ""
+        try
+          set uidStr to my escapeField(uid of ev)
+        end try
+        set titleStr to ""
+        try
+          set titleStr to my escapeField(summary of ev)
+        end try
+        set locStr to ""
+        try
+          set locStr to my escapeField(location of ev)
+        end try
+        set allDayVal to false
+        try
+          set allDayVal to allday event of ev
+        end try
+        set sSec to (start date of ev) - epoch
+        set eSec to (end date of ev) - epoch
+        set lineText to calName & tab & uidStr & tab & titleStr & tab & (sSec as integer) & tab & (eSec as integer) & tab & (allDayVal as string) & tab & locStr
+        set end of outLines to lineText
+      end repeat
+    end try
+  end repeat
+
+  set AppleScript's text item delimiters to linefeed
+  return outLines as text
+end tell
+        "#, start_s = start_s, end_s = end_s);
+
+        let stdout = run_applescript(&script)?;
+        let mut events = Vec::new();
+
+        for line in stdout.lines() {
+            let line = line.trim_end();
+            if line.is_empty() {
+                continue;
+            }
+
+            let parts: Vec<&str> = line.split('\t').collect();
+            if parts.len() < 6 {
+                continue;
+            }
+
+            let calendar = parts[0].to_string();
+            let uid = parts[1].to_string();
+            let title = parts[2].to_string();
+
+            let start_s: i64 = parts[3].parse().unwrap_or(0);
+            let end_s: i64 = parts[4].parse().unwrap_or(0);
+            let all_day = matches!(parts[5].trim(), "true" | "True" | "TRUE");
+
+            let location = parts.get(6).map(|s| s.to_string()).filter(|s| !s.is_empty());
+
+            events.push(AppleCalendarEvent {
+                calendar,
+                uid,
+                title,
+                start_ms: start_s * 1000,
+                end_ms: end_s * 1000,
+                all_day,
+                location,
+            });
+        }
+
+        events.sort_by_key(|e| e.start_ms);
+        Ok(events)
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn run_applescript(source: &str) -> Result<String, String> {
+    use cocoa::base::{id, nil};
+    use cocoa::foundation::{NSAutoreleasePool, NSString};
+    use objc::{class, msg_send, sel, sel_impl};
+    use std::ffi::CStr;
+
+    unsafe {
+        let _pool = NSAutoreleasePool::new(nil);
+        let ns_source: id = NSString::alloc(nil).init_str(source);
+
+        let script: id = msg_send![class!(NSAppleScript), alloc];
+        let script: id = msg_send![script, initWithSource: ns_source];
+
+        let mut error: id = nil;
+        let descriptor: id = msg_send![script, executeAndReturnError: &mut error];
+
+        if descriptor == nil {
+            if error != nil {
+                let key: id = NSString::alloc(nil).init_str("NSAppleScriptErrorMessage");
+                let msg: id = msg_send![error, objectForKey: key];
+                if msg != nil {
+                    let cstr = NSString::UTF8String(msg);
+                    if !cstr.is_null() {
+                        let s = CStr::from_ptr(cstr).to_string_lossy().to_string();
+                        return Err(s);
+                    }
+                }
+            }
+            return Err("AppleScript failed".to_string());
+        }
+
+        let out: id = msg_send![descriptor, stringValue];
+        if out == nil {
+            return Ok(String::new());
+        }
+        let cstr = NSString::UTF8String(out);
+        if cstr.is_null() {
+            return Ok(String::new());
+        }
+        Ok(CStr::from_ptr(cstr).to_string_lossy().to_string())
+    }
+}
+
+// ============================================================================
 // FILE SCANNING COMMANDS
 // ============================================================================
 
 #[tauri::command]
-pub async fn scan_directories(directories: Vec<String>) -> Result<Vec<FileInfo>, String> {
+pub async fn scan_directories(app_handle: tauri::AppHandle, directories: Vec<String>) -> Result<Vec<FileInfo>, String> {
     // RUST RESULT TYPE:
     // Result<T, E> represents either:
     // - Ok(T): Success with value of type T
@@ -128,6 +305,12 @@ pub async fn scan_directories(directories: Vec<String>) -> Result<Vec<FileInfo>,
         // Loop through each directory path
         // "for item in collection" is like "for (const item of collection)" in JS
 
+        let directory_path = Path::new(&directory);
+        if !directory_path.exists() || !directory_path.is_dir() {
+            eprintln!("⚠️  Skipping non-directory path: {}", directory);
+            continue;
+        }
+
         match scan_directory(&directory).await {
             // "&directory" is a reference (borrow) to directory
             // We're not giving ownership, just letting scan_directory "look at" it
@@ -150,6 +333,21 @@ pub async fn scan_directories(directories: Vec<String>) -> Result<Vec<FileInfo>,
     }
 
     println!("✅ Found {} files total", all_files.len());
+
+    // PHASE 2: Save files to database!
+    // Get database connection and save all scanned files
+    match crate::db::get_connection(&app_handle) {
+        Ok(mut conn) => {
+            match crate::db::upsert_files(&mut conn, &all_files) {
+                Ok(saved_count) => println!("💾 Saved {} files to database", saved_count),
+                Err(e) => eprintln!("❌ Failed to save scan results: {}", e),
+            }
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to open database: {}", e);
+            // Continue anyway - we can still return the files
+        }
+    }
 
     Ok(all_files)
     // Ok() wraps the value in a Result::Ok
@@ -320,8 +518,6 @@ pub async fn generate_thumbnail(file_path: String, output_dir: String) -> Result
     // Use macOS qlmanage to generate thumbnail
     // qlmanage is macOS's Quick Look thumbnail generator
 
-    use tauri_plugin_shell::ShellExt;
-
     // Create output file path
     let file_name = Path::new(&file_path)
         .file_stem()
@@ -336,7 +532,7 @@ pub async fn generate_thumbnail(file_path: String, output_dir: String) -> Result
     // -s = size (256x256 pixels)
 
     // For now, we'll return a placeholder
-    // We'll implement this fully when we integrate shell plugin
+    // We'll implement this fully when we integrate shell plugin in Phase 5
 
     Ok(output_path)
 }
@@ -346,21 +542,43 @@ pub async fn generate_thumbnail(file_path: String, output_dir: String) -> Result
 // ============================================================================
 
 #[tauri::command]
-pub async fn get_all_files() -> Result<Vec<FileInfo>, String> {
-    // Will query database for all files
-    Ok(Vec::new())
+pub async fn get_all_files(app_handle: tauri::AppHandle) -> Result<Vec<FileInfo>, String> {
+    // PHASE 2: Load files from database!
+    match crate::db::get_connection(&app_handle) {
+        Ok(conn) => {
+            match crate::db::get_all_files(&conn) {
+                Ok(files) => {
+                    println!("📂 Loaded {} files from database", files.len());
+                    Ok(files)
+                }
+                Err(e) => Err(format!("Failed to load files: {}", e)),
+            }
+        }
+        Err(e) => Err(format!("Failed to connect to database: {}", e)),
+    }
 }
 
 #[tauri::command]
-pub async fn update_file_metadata(metadata: FileMetadata) -> Result<(), String> {
-    // Will update emotional metadata in database
+pub async fn update_file_metadata(_metadata: FileMetadata) -> Result<(), String> {
+    // Will update emotional metadata in database (Phase 7)
     Ok(())
 }
 
 #[tauri::command]
-pub async fn search_files(query: String) -> Result<Vec<FileInfo>, String> {
-    // Will use SQLite FTS5 for full-text search
-    Ok(Vec::new())
+pub async fn search_files(app_handle: tauri::AppHandle, query: String) -> Result<Vec<FileInfo>, String> {
+    // PHASE 2: Use FTS5 for lightning-fast full-text search!
+    match crate::db::get_connection(&app_handle) {
+        Ok(conn) => {
+            match crate::db::search_files(&conn, &query) {
+                Ok(files) => {
+                    println!("🔎 Found {} files matching '{}'", files.len(), query);
+                    Ok(files)
+                }
+                Err(e) => Err(format!("Search failed: {}", e)),
+            }
+        }
+        Err(e) => Err(format!("Failed to connect to database: {}", e)),
+    }
 }
 
 // ============================================================================

@@ -24,6 +24,7 @@ tauri-plugin-fs = "2"          # File system access
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }  # SQLite database
 tauri-plugin-opener = "2"      # Open files in Finder/default apps
 tauri-plugin-shell = "2"       # Run shell commands (for qlmanage, etc.)
+tauri-plugin-dialog = "2"      # Native open/save dialogs
 
 # For file watching (detects when files change)
 notify = "6"                   # Cross-platform file watcher
@@ -43,6 +44,13 @@ chrono = "0.4"                 # DateTime library for Rust
 
 # For working with plists (macOS property list files - Finder tags are stored as plists)
 plist = "1"                    # Parse/generate plist files
+
+# For SQLite database (direct access, simpler than tauri-plugin-sql)
+rusqlite = { version = "0.32", features = ["bundled"] }  # Bundled = includes SQLite
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2"
+cocoa = "0.25"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
