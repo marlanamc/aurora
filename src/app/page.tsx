@@ -18,7 +18,6 @@ import { VALUE_ICON_OPTIONS } from '@/lib/value-icons'
 import { MonthlyCalendar } from '@/components/MonthlyCalendar'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { WelcomeOnboarding, hasCompletedWelcome } from '@/components/WelcomeOnboarding'
-import { EmptyState } from '@/components/EmptyState'
 
 const VALUE_PALETTE = [
   ['#10B981', '#34D399'],
@@ -725,23 +724,46 @@ export default function HomePage() {
                   Scanning your files...
                 </p>
               </motion.div>
-            ) : fileCount === 0 && (settings.scanSources ?? []).length === 0 ? (
-              <EmptyState
-                theme={theme}
-                onOpenSettings={() => setIsSettingsOpen(true)}
-                hasScanSources={false}
-              />
-            ) : fileCount === 0 && (settings.scanSources ?? []).length > 0 ? (
-              <EmptyState
-                theme={theme}
-                onOpenSettings={() => {
-                  setIsSettingsOpen(true)
-                  setTimeout(() => {
-                    rescanDirectories()
-                  }, 300)
-                }}
-                hasScanSources={true}
-              />
+            ) : fileCount === 0 ? (
+              <motion.div
+                className="text-center py-20 px-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <p
+                  className="text-xl font-semibold mb-4"
+                  style={{ color: theme.colors.text }}
+                >
+                  No files indexed yet
+                </p>
+                <p
+                  className="text-sm mb-6 opacity-70"
+                  style={{ color: theme.colors.textSecondary }}
+                >
+                  {(settings.scanSources ?? []).length === 0
+                    ? 'Add folders in Settings to get started'
+                    : 'Files are being scanned...'}
+                </p>
+                <button
+                  onClick={() => {
+                    setIsSettingsOpen(true)
+                    if ((settings.scanSources ?? []).length > 0) {
+                      setTimeout(() => {
+                        rescanDirectories()
+                      }, 300)
+                    }
+                  }}
+                  className="px-6 py-3 rounded-xl font-semibold text-sm transition-all hover:scale-105"
+                  style={{
+                    background: theme.gradients.button,
+                    color: '#000000',
+                    boxShadow: theme.effects.shadow,
+                  }}
+                >
+                  Open Settings
+                </button>
+              </motion.div>
             ) : (
               <motion.div
                 className="space-y-4"

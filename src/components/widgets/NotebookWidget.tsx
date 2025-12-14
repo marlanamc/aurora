@@ -39,7 +39,8 @@ export function NotebookWidget({
   getWidgetData: <T,>(id: string, fallback: T) => T
   mergeWidgetData: <T extends Record<string, unknown>>(id: string, partial: Partial<T>, fallback: T) => void
 }) {
-  const notebooks = getWidgetData<Notebook[]>(widgetId, [])
+  const data = getWidgetData<{ notebooks: Notebook[] }>(widgetId, { notebooks: [] })
+  const notebooks = Array.isArray(data?.notebooks) ? data.notebooks : []
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null)
 
   const addNotebook = async () => {
