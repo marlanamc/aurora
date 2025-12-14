@@ -21,6 +21,7 @@ import { AppleCalendarWidget } from '@/components/widgets/AppleCalendarWidget'
 import { QuickSearchWidget } from '@/components/widgets/QuickSearchWidget'
 import { FileTypeBreakdownWidget } from '@/components/widgets/FileTypeBreakdownWidget'
 import { EnergyTrackerWidget } from '@/components/widgets/EnergyTrackerWidget'
+import { NotebookWidget } from '@/components/widgets/NotebookWidget'
 import { filterFilesForValue, getValueTemplate } from '@/lib/value-templates'
 import {
   buildDefaultLayout,
@@ -512,6 +513,15 @@ function renderWidget({
     case 'energy-tracker':
       return (
         <EnergyTrackerWidget
+          widgetId={widget.id}
+          theme={theme}
+          getWidgetData={getWidgetData}
+          mergeWidgetData={mergeWidgetData}
+        />
+      )
+    case 'notebook':
+      return (
+        <NotebookWidget
           widgetId={widget.id}
           theme={theme}
           getWidgetData={getWidgetData}

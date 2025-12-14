@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarDays, Clock, FileText, Flame, Rainbow, Scroll, Shield, Sparkles, TrendingUp, Zap, Wind, Quote, Timer, PenTool, Search, type IconComponent } from '@/lib/icons'
+import { CalendarDays, Clock, FileText, Flame, Rainbow, Scroll, Shield, Sparkles, TrendingUp, Zap, Wind, Quote, Timer, PenTool, Search, BookOpen, type IconComponent } from '@/lib/icons'
 
 export type WidgetCategory = 'regulation' | 'momentum' | 'calendar' | 'memory' | 'discovery'
 
@@ -32,6 +32,7 @@ export type WidgetType =
   | 'quick-search'
   | 'file-type-breakdown'
   | 'energy-tracker'
+  | 'notebook'
 
 export type WidgetSpan = 1 | 2
 
@@ -224,6 +225,15 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     description: 'A gentle way to notice how you\'re feeling, without judgment.',
     icon: Zap,
     category: 'regulation',
+    defaultSpan: 1,
+    isEnabledByDefault: () => false,
+  },
+  {
+    type: 'notebook',
+    name: 'Notebooks',
+    description: 'Add folders as colorful notebooks for quick access.',
+    icon: BookOpen,
+    category: 'discovery',
     defaultSpan: 1,
     isEnabledByDefault: () => false,
   },
