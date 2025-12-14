@@ -145,7 +145,12 @@ export function NotebookWidget({
                       background: notebook.color,
                       boxShadow: `0 4px 12px ${notebook.color}40, 0 2px 4px rgba(0,0,0,0.1)`,
                     }}
-                    onClick={() => openNotebook(notebook.path)}
+                    onClick={(e) => {
+                      // Only open if clicking on the cover itself, not on buttons
+                      if (e.target === e.currentTarget || !(e.target as HTMLElement).closest('button')) {
+                        openNotebook(notebook.path)
+                      }
+                    }}
                   >
                     {/* Spine/Binding - Darker vertical strip on left */}
                     <div
@@ -205,14 +210,16 @@ export function NotebookWidget({
                       }}
                     />
 
-                    {/* Color Picker Button - Hidden until hover */}
+                    {/* Color Picker Button - Always visible but subtle */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
+                        e.preventDefault()
                         setShowColorPicker(showColorPicker === notebook.id ? null : notebook.id)
                       }}
-                      className="absolute bottom-2 right-2 p-1.5 rounded-md bg-black/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      className="absolute bottom-2 right-2 p-1.5 rounded-md bg-black/30 backdrop-blur-sm opacity-60 hover:opacity-100 transition-opacity z-20 pointer-events-auto"
                       title="Change color"
+                      style={{ pointerEvents: 'auto' }}
                     >
                       <div
                         className="w-3 h-3 rounded border"
@@ -223,14 +230,16 @@ export function NotebookWidget({
                       />
                     </button>
 
-                    {/* Remove Button - Hidden until hover */}
+                    {/* Remove Button - Always visible but subtle */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
+                        e.preventDefault()
                         removeNotebook(notebook.id)
                       }}
-                      className="absolute top-2 left-2 p-1 rounded-md bg-red-500/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      className="absolute top-2 left-2 p-1 rounded-md bg-red-500/80 backdrop-blur-sm opacity-60 hover:opacity-100 transition-opacity z-20 pointer-events-auto"
                       title="Remove notebook"
+                      style={{ pointerEvents: 'auto' }}
                     >
                       <X size={12} className="text-white" />
                     </button>
@@ -241,23 +250,32 @@ export function NotebookWidget({
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="absolute bottom-full right-0 mb-2 p-2 rounded-lg z-20"
+                        className="absolute bottom-full right-0 mb-2 p-2 rounded-lg z-30"
                         style={{
                           background: theme.components.card.background,
                           border: theme.components.card.border,
                           boxShadow: theme.effects.shadow,
+                          pointerEvents: 'auto',
                         }}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                        }}
                       >
                         <div className="grid grid-cols-5 gap-2">
                           {NOTEBOOK_COLORS.map((color) => (
                             <button
                               key={color}
-                              onClick={() => updateNotebookColor(notebook.id, color)}
-                              className="w-6 h-6 rounded border-2 transition-all hover:scale-110"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
+                                updateNotebookColor(notebook.id, color)
+                              }}
+                              className="w-6 h-6 rounded border-2 transition-all hover:scale-110 cursor-pointer"
                               style={{
                                 background: color,
                                 borderColor: notebook.color === color ? theme.colors.primary : 'transparent',
+                                pointerEvents: 'auto',
                               }}
                               title={color}
                             />
