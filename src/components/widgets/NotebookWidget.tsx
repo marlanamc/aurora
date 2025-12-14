@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { UnifiedCard, UnifiedCardHeader } from '@/components/UnifiedCard'
-import { BookOpen, Plus, X, Folder } from '@/lib/icons'
+import { BookOpen, Plus, X, Folder, Star } from '@/lib/icons'
 import { type GlobalTheme } from '@/lib/global-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -13,20 +13,42 @@ type Notebook = {
   path: string
   name: string
   color: string
+  createdAt: number
 }
 
 const NOTEBOOK_COLORS = [
-  '#FF6B6B', // Red
+  '#D97757', // Terracotta/Red
+  '#C9A961', // Orange-brown
+  '#E8D5A3', // Pastel yellow
+  '#6B7F5A', // Olive green
+  '#7A8FA3', // Dusty blue
+  '#A89BB0', // Light violet
+  '#FF6B6B', // Bright red
   '#4ECDC4', // Teal
   '#45B7D1', // Blue
-  '#FFA07A', // Salmon
   '#98D8C8', // Mint
-  '#F7DC6F', // Yellow
-  '#BB8FCE', // Purple
-  '#85C1E2', // Sky Blue
-  '#F8B88B', // Peach
-  '#90EE90', // Light Green
 ]
+
+function formatDate(timestamp: number): string {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) {
+    const hours = date.getHours()
+    const minutes = date.getMinutes()
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    const displayHours = hours % 12 || 12
+    return `Today at ${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`
+  } else if (diffDays === 1) {
+    return 'Yesterday'
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`
+  } else {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
+  }
+}
 
 export function NotebookWidget({
   theme,
@@ -55,6 +77,7 @@ export function NotebookWidget({
         path,
         name,
         color: NOTEBOOK_COLORS[notebooks.length % NOTEBOOK_COLORS.length],
+        createdAt: Date.now(),
       }
 
       const updated = [...notebooks, newNotebook]
@@ -90,214 +113,194 @@ export function NotebookWidget({
         title="Notebooks"
         subtitle="Your folders, styled like notebooks"
       />
-      <div className="p-4 space-y-3">
+      <div className="p-4">
         {notebooks.length === 0 ? (
-          <div className="text-center py-8 text-sm opacity-60" style={{ color: theme.colors.textSecondary }}>
+          <div className="text-center py-12 text-sm opacity-60" style={{ color: theme.colors.textSecondary }}>
             No notebooks yet. Add a folder to get started.
           </div>
         ) : (
-          <AnimatePresence>
-            {notebooks.map((notebook, index) => (
-              <motion.div
-                key={notebook.id}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ delay: index * 0.05 }}
-                className="relative group"
-              >
-                {/* Notebook Card */}
-                <div
-                  className="relative rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
-                  style={{
-                    background: `linear-gradient(135deg, ${notebook.color}25, ${notebook.color}15)`,
-                    border: `2px solid ${notebook.color}60`,
-                    boxShadow: `0 4px 12px ${notebook.color}30, inset 0 1px 0 rgba(255,255,255,0.1)`,
-                  }}
-                  onClick={() => openNotebook(notebook.path)}
+          <div className="grid grid-cols-3 gap-4">
+            <AnimatePresence>
+              {notebooks.map((notebook, index) => (
+                <motion.div
+                  key={notebook.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="relative group"
                 >
-                  {/* Notebook Binding/Spine - Wider and more prominent */}
+                  {/* Notebook Cover - Vertical Portrait Style */}
                   <div
-                    className="absolute left-0 top-0 bottom-0 w-3"
+                    className="relative w-full aspect-[3/4] rounded-lg cursor-pointer transition-all hover:scale-105 hover:shadow-xl active:scale-95 overflow-hidden"
                     style={{
-                      background: `linear-gradient(90deg, ${notebook.color}, ${notebook.color}dd)`,
-                      boxShadow: `inset -2px 0 4px rgba(0,0,0,0.2), 2px 0 4px rgba(0,0,0,0.1)`,
+                      background: notebook.color,
+                      boxShadow: `0 4px 12px ${notebook.color}40, 0 2px 4px rgba(0,0,0,0.1)`,
                     }}
-                  />
-                  
-                  {/* Spiral binding holes */}
-                  <div className="absolute left-1.5 top-0 bottom-0 flex flex-col justify-start gap-1 pt-2 pb-2">
-                    {[...Array(5)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="w-1 h-1 rounded-full"
-                        style={{
-                          background: `rgba(0,0,0,0.3)`,
-                          boxShadow: `inset 0 0 2px rgba(255,255,255,0.2)`,
+                    onClick={() => openNotebook(notebook.path)}
+                  >
+                    {/* Spine/Binding - Darker vertical strip on left */}
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-2"
+                      style={{
+                        background: `linear-gradient(90deg, rgba(0,0,0,0.2), rgba(0,0,0,0.15))`,
+                      }}
+                    />
+
+                    {/* Star Icon - Top Right */}
+                    <div className="absolute top-2 right-2 z-10">
+                      <Star 
+                        size={16} 
+                        className="opacity-60"
+                        style={{ 
+                          fill: 'rgba(255,255,255,0.3)',
+                          stroke: 'rgba(255,255,255,0.5)',
+                          strokeWidth: 1.5,
                         }}
                       />
-                    ))}
-                  </div>
+                    </div>
 
-                  {/* Notebook Cover Texture */}
-                  <div
-                    className="absolute inset-0 pointer-events-none opacity-5"
-                    style={{
-                      backgroundImage: `repeating-linear-gradient(
-                        45deg,
-                        transparent,
-                        transparent 10px,
-                        rgba(0,0,0,0.1) 10px,
-                        rgba(0,0,0,0.1) 11px
-                      )`,
-                    }}
-                  />
+                    {/* "notebook" Text on Cover - Script-like */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div
+                        className="text-center"
+                        style={{
+                          fontFamily: 'Georgia, serif',
+                          fontSize: '14px',
+                          fontWeight: 400,
+                          color: 'rgba(255,255,255,0.7)',
+                          textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                          letterSpacing: '0.5px',
+                          transform: 'rotate(-2deg)',
+                        }}
+                      >
+                        notebook
+                      </div>
+                    </div>
 
-                  {/* Pages Effect - Multiple layers */}
-                  <div className="absolute left-3 top-0 bottom-0 right-0">
-                    {/* Top page edge shadow */}
+                    {/* Subtle Pattern/Watermark */}
                     <div
-                      className="absolute top-0 left-0 right-0 h-px"
-                      style={{
-                        background: `linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)`,
-                      }}
-                    />
-                    
-                    {/* Ruled paper lines */}
-                    <div
-                      className="absolute inset-0 pointer-events-none opacity-20"
+                      className="absolute inset-0 opacity-5 pointer-events-none"
                       style={{
                         backgroundImage: `repeating-linear-gradient(
+                          45deg,
                           transparent,
-                          transparent 20px,
-                          ${notebook.color}40 20px,
-                          ${notebook.color}40 21px
+                          transparent 8px,
+                          rgba(0,0,0,0.1) 8px,
+                          rgba(0,0,0,0.1) 9px
                         )`,
-                        backgroundPosition: '0 8px',
                       }}
                     />
-                    
-                    {/* Margin line */}
-                    <div
-                      className="absolute left-8 top-0 bottom-0 w-px opacity-30"
-                      style={{
-                        background: `${notebook.color}60`,
+
+                    {/* Color Picker Button - Hidden until hover */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowColorPicker(showColorPicker === notebook.id ? null : notebook.id)
                       }}
-                    />
-                  </div>
-
-                  <div className="relative z-10 flex items-center justify-between pl-6 pr-4 py-4">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div
-                        className="p-2.5 rounded-md shrink-0 shadow-sm"
-                        style={{
-                          background: `${notebook.color}30`,
-                          color: notebook.color,
-                          border: `1px solid ${notebook.color}50`,
-                        }}
-                      >
-                        <Folder size={18} strokeWidth={2} />
-                      </div>
-                      <div className="flex-1 min-w-0 pl-2">
-                        <div
-                          className="font-bold text-sm truncate mb-0.5"
-                          style={{ 
-                            color: theme.colors.text,
-                            textShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                          }}
-                        >
-                          {notebook.name}
-                        </div>
-                        <div
-                          className="text-xs truncate opacity-50 font-mono"
-                          style={{ color: theme.colors.textSecondary }}
-                        >
-                          {notebook.path}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      {/* Color Picker Button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setShowColorPicker(showColorPicker === notebook.id ? null : notebook.id)
-                        }}
-                        className="p-1.5 rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                        title="Change color"
-                      >
-                        <div
-                          className="w-4 h-4 rounded border-2"
-                          style={{
-                            background: notebook.color,
-                            borderColor: theme.colors.textSecondary,
-                          }}
-                        />
-                      </button>
-
-                      {/* Remove Button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          removeNotebook(notebook.id)
-                        }}
-                        className="p-1.5 rounded-md hover:bg-red-500/20 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Remove notebook"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Color Picker Dropdown */}
-                  {showColorPicker === notebook.id && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute top-full right-0 mt-2 p-2 rounded-lg z-20"
-                      style={{
-                        background: theme.components.card.background,
-                        border: theme.components.card.border,
-                        boxShadow: theme.effects.shadow,
-                      }}
-                      onClick={(e) => e.stopPropagation()}
+                      className="absolute bottom-2 right-2 p-1.5 rounded-md bg-black/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      title="Change color"
                     >
-                      <div className="grid grid-cols-5 gap-2">
-                        {NOTEBOOK_COLORS.map((color) => (
-                          <button
-                            key={color}
-                            onClick={() => updateNotebookColor(notebook.id, color)}
-                            className="w-8 h-8 rounded-lg border-2 transition-all hover:scale-110"
-                            style={{
-                              background: color,
-                              borderColor: notebook.color === color ? theme.colors.primary : 'transparent',
-                            }}
-                            title={color}
-                          />
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        )}
+                      <div
+                        className="w-3 h-3 rounded border"
+                        style={{
+                          background: notebook.color,
+                          borderColor: 'rgba(255,255,255,0.5)',
+                        }}
+                      />
+                    </button>
 
-        {/* Add Notebook Button */}
-        <button
-          onClick={addNotebook}
-          className="w-full p-3 rounded-lg border-2 border-dashed transition-all hover:border-solid hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center gap-2"
-          style={{
-            borderColor: theme.colors.textSecondary,
-            color: theme.colors.textSecondary,
-          }}
-        >
-          <Plus size={18} />
-          <span className="text-sm font-medium">Add Notebook</span>
-        </button>
+                    {/* Remove Button - Hidden until hover */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeNotebook(notebook.id)
+                      }}
+                      className="absolute top-2 left-2 p-1 rounded-md bg-red-500/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      title="Remove notebook"
+                    >
+                      <X size={12} className="text-white" />
+                    </button>
+
+                    {/* Color Picker Dropdown */}
+                    {showColorPicker === notebook.id && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute bottom-full right-0 mb-2 p-2 rounded-lg z-20"
+                        style={{
+                          background: theme.components.card.background,
+                          border: theme.components.card.border,
+                          boxShadow: theme.effects.shadow,
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="grid grid-cols-5 gap-2">
+                          {NOTEBOOK_COLORS.map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => updateNotebookColor(notebook.id, color)}
+                              className="w-6 h-6 rounded border-2 transition-all hover:scale-110"
+                              style={{
+                                background: color,
+                                borderColor: notebook.color === color ? theme.colors.primary : 'transparent',
+                              }}
+                              title={color}
+                            />
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Label Below Notebook */}
+                  <div className="mt-2 text-center">
+                    <div
+                      className="text-xs font-medium truncate mb-0.5"
+                      style={{ color: theme.colors.text }}
+                    >
+                      {notebook.name}
+                    </div>
+                    <div
+                      className="text-xs opacity-60"
+                      style={{ color: theme.colors.textSecondary }}
+                    >
+                      {formatDate(notebook.createdAt)}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {/* Add New Notebook Button */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: notebooks.length * 0.05 }}
+              className="relative group"
+            >
+              <button
+                onClick={addNotebook}
+                className="relative w-full aspect-[3/4] rounded-lg border-2 border-dashed transition-all hover:border-solid hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center overflow-hidden"
+                style={{
+                  borderColor: theme.colors.primary,
+                  color: theme.colors.primary,
+                }}
+              >
+                <Plus size={32} strokeWidth={2} />
+              </button>
+              <div className="mt-2 text-center">
+                <div
+                  className="text-xs font-medium"
+                  style={{ color: theme.colors.primary }}
+                >
+                  New...
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </UnifiedCard>
   )
