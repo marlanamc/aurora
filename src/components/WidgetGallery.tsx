@@ -16,12 +16,100 @@ interface WidgetGalleryProps {
     settings: AuroraSettings
 }
 
+// Widget examples/previews
+const WIDGET_EXAMPLES: Record<WidgetType, { preview: string; useCase?: string }> = {
+    'heatmap': {
+        preview: 'Visual grid showing your progress over time',
+        useCase: 'Track daily habits, job applications, or any recurring activity'
+    },
+    'daily-quests': {
+        preview: 'One small, gentle task suggestion for today',
+        useCase: 'Break down big goals into tiny, manageable steps'
+    },
+    'resistance-selector': {
+        preview: 'Choose your resistance type and get micro-actions',
+        useCase: 'When you feel stuck, overwhelmed, or paralyzed'
+    },
+    'remember-this': {
+        preview: 'Files that resurface based on time and context',
+        useCase: 'Rediscover important files when you need them'
+    },
+    'emotional-worlds': {
+        preview: 'Grouped files by mood, season, or vibe',
+        useCase: 'Organize files by how they make you feel'
+    },
+    'pinned-items': {
+        preview: 'Quick access to your most important files',
+        useCase: 'Keep frequently used folders and files at hand'
+    },
+    'relevant-files': {
+        preview: 'Smart file matches based on your core values',
+        useCase: 'See files related to your current focus area'
+    },
+    'brain-dump': {
+        preview: 'Free-form text area for thoughts and ideas',
+        useCase: 'Capture thoughts without structure or judgment'
+    },
+    'weekly-calendar': {
+        preview: '7-day view with optional Apple Calendar integration',
+        useCase: 'Plan your week and see upcoming events'
+    },
+    'monthly-calendar': {
+        preview: 'Full month calendar view',
+        useCase: 'Get a bird\'s eye view of your schedule'
+    },
+    'recent-activity': {
+        preview: 'Recently opened files and folders',
+        useCase: 'Quickly return to what you were working on'
+    },
+    'breathing': {
+        preview: 'Guided breathing exercise with visual timer',
+        useCase: 'Take a moment to center yourself and regulate'
+    },
+    'affirmation': {
+        preview: 'Daily quote or affirmation tailored to your values',
+        useCase: 'Start your day with gentle encouragement'
+    },
+    'pomodoro': {
+        preview: 'Work session timer (25/5 minute intervals)',
+        useCase: 'Focus for short bursts, then take breaks'
+    },
+    'scratchpad': {
+        preview: 'Quick notes area with lined paper effect',
+        useCase: 'Jot down ideas, reminders, or thoughts'
+    },
+    'apple-calendar': {
+        preview: 'Today\'s events from your Apple Calendar',
+        useCase: 'See your schedule without leaving Aurora'
+    },
+    'quick-search': {
+        preview: 'Fast file search with recent search history',
+        useCase: 'Find files instantly with autocomplete'
+    },
+    'file-type-breakdown': {
+        preview: 'Visual breakdown of your file types and sizes',
+        useCase: 'Understand what types of files you have most'
+    },
+    'energy-tracker': {
+        preview: 'Log your energy levels throughout the day',
+        useCase: 'Notice patterns in how you feel over time'
+    },
+    'notebook': {
+        preview: 'Folders styled as colorful notebook covers',
+        useCase: 'Quick access to your favorite folders'
+    },
+}
+
 export function WidgetGallery({ isOpen, onClose, onAdd, theme, presentTypes, settings }: WidgetGalleryProps) {
     const [query, setQuery] = useState('')
+    const [expandedWidget, setExpandedWidget] = useState<WidgetType | null>(null)
 
     // Reset query when closed
     useEffect(() => {
-        if (!isOpen) setQuery('')
+        if (!isOpen) {
+            setQuery('')
+            setExpandedWidget(null)
+        }
     }, [isOpen])
 
     // Filter widgets
@@ -29,7 +117,6 @@ export function WidgetGallery({ isOpen, onClose, onAdd, theme, presentTypes, set
         const q = query.trim().toLowerCase()
 
         // Start with all widgets that are NOT already on the dashboard
-        // (Or maybe show them but disabled? Let's hide them for cleaner UI as per original)
         const available = WIDGET_DEFINITIONS.filter(w => !presentTypes.has(w.type))
 
         if (!q) return available
@@ -37,7 +124,9 @@ export function WidgetGallery({ isOpen, onClose, onAdd, theme, presentTypes, set
         return available.filter(w =>
             w.name.toLowerCase().includes(q) ||
             w.description.toLowerCase().includes(q) ||
-            WIDGET_CATEGORY_LABELS[w.category].toLowerCase().includes(q)
+            WIDGET_CATEGORY_LABELS[w.category].toLowerCase().includes(q) ||
+            WIDGET_EXAMPLES[w.type]?.preview.toLowerCase().includes(q) ||
+            WIDGET_EXAMPLES[w.type]?.useCase?.toLowerCase().includes(q)
         )
     }, [query, presentTypes])
 
@@ -95,7 +184,7 @@ export function WidgetGallery({ isOpen, onClose, onAdd, theme, presentTypes, set
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.95, opacity: 0, y: 20 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className="w-full max-w-4xl max-h-[85vh] flex flex-col pointer-events-auto rounded-3xl overflow-hidden shadow-2xl"
+                            className="w-full max-w-5xl max-h-[90vh] flex flex-col pointer-events-auto rounded-3xl overflow-hidden shadow-2xl"
                             style={{
                                 background: theme.components.card.background,
                                 border: `1px solid ${theme.colors.border}`,
@@ -119,7 +208,7 @@ export function WidgetGallery({ isOpen, onClose, onAdd, theme, presentTypes, set
                                             Widget Gallery
                                         </h2>
                                         <p className="text-sm" style={{ color: theme.colors.textSecondary }}>
-                                            Customize your dashboard
+                                            Browse and add widgets to customize your dashboard
                                         </p>
                                     </div>
                                 </div>
@@ -133,7 +222,7 @@ export function WidgetGallery({ isOpen, onClose, onAdd, theme, presentTypes, set
                                         <input
                                             value={query}
                                             onChange={e => setQuery(e.target.value)}
-                                            placeholder="Find a widget..."
+                                            placeholder="Search widgets..."
                                             className="bg-transparent outline-none text-sm w-full"
                                             style={{ color: theme.colors.text }}
                                             autoFocus
@@ -184,6 +273,8 @@ export function WidgetGallery({ isOpen, onClose, onAdd, theme, presentTypes, set
                                                             theme={theme}
                                                             settings={settings}
                                                             onAdd={() => onAdd(widget.type)}
+                                                            isExpanded={expandedWidget === widget.type}
+                                                            onToggleExpand={() => setExpandedWidget(expandedWidget === widget.type ? null : widget.type)}
                                                         />
                                                     ))}
                                                 </div>
@@ -200,71 +291,134 @@ export function WidgetGallery({ isOpen, onClose, onAdd, theme, presentTypes, set
     )
 }
 
-function WidgetCard({ widget, theme, settings, onAdd }: {
+function WidgetCard({ widget, theme, settings, onAdd, isExpanded, onToggleExpand }: {
     widget: WidgetDefinition,
     theme: GlobalTheme,
     settings: AuroraSettings
     onAdd: () => void
+    isExpanded: boolean
+    onToggleExpand: () => void
 }) {
     const Icon = widget.icon
     const showEnableHint = widget.type === 'remember-this' && !settings.showRememberThis
+    const example = WIDGET_EXAMPLES[widget.type]
 
     return (
-        <motion.button
-            onClick={onAdd}
-            className="group relative flex flex-col items-start p-5 rounded-2xl text-left transition-all duration-300 w-full hover:shadow-lg"
+        <motion.div
+            className="group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-300 w-full"
             style={{
                 background: theme.colors.surface,
                 border: `1px solid ${theme.colors.border}`
             }}
-            whileHover={{ y: -4, scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ y: -2 }}
         >
-            <div
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"
-                style={{ background: theme.gradients.glow, pointerEvents: 'none' }}
-            />
-
-            <div className="relative z-10 w-full">
-                <div className="flex justify-between items-start mb-4">
-                    <div
-                        className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
-                        style={{ background: theme.gradients.button, color: '#000' }}
-                    >
-                        <Icon size={24} strokeWidth={2} />
-                    </div>
-                    <span
-                        className="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider"
-                        style={{
-                            background: theme.colors.surfaceHover,
-                            color: theme.colors.textSecondary
-                        }}
-                    >
-                        {widget.defaultSpan === 2 ? 'Wide' : 'Narrow'}
-                    </span>
-                </div>
-
-                <h3 className="text-lg font-bold mb-1" style={{ color: theme.colors.text }}>
-                    {widget.name}
-                </h3>
-                <p className="text-sm leading-relaxed mb-4 min-h-[40px]" style={{ color: theme.colors.textSecondary }}>
-                    {widget.description}
-                </p>
-
-                {showEnableHint && (
-                    <div className="mb-3 text-xs px-2 py-1 rounded bg-blue-500/10 text-blue-500 font-medium inline-block">
-                        Enables &quot;Remember This&quot;
-                    </div>
-                )}
-
+            <motion.button
+                onClick={onToggleExpand}
+                className="flex flex-col items-start p-5 text-left w-full"
+                whileTap={{ scale: 0.98 }}
+            >
                 <div
-                    className="w-full py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold transition-colors mt-auto"
-                    style={{ background: theme.colors.surfaceHover, color: theme.colors.text }}
-                >
-                    <Plus size={16} />
-                    Add Widget
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    style={{ background: theme.gradients.glow, pointerEvents: 'none' }}
+                />
+
+                <div className="relative z-10 w-full">
+                    <div className="flex justify-between items-start mb-4">
+                        <div
+                            className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm"
+                            style={{ background: theme.gradients.button, color: '#000' }}
+                        >
+                            <Icon size={24} strokeWidth={2} />
+                        </div>
+                        <span
+                            className="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider"
+                            style={{
+                                background: theme.colors.surfaceHover,
+                                color: theme.colors.textSecondary
+                            }}
+                        >
+                            {widget.defaultSpan === 2 ? 'Wide' : 'Narrow'}
+                        </span>
+                    </div>
+
+                    <h3 className="text-lg font-bold mb-1" style={{ color: theme.colors.text }}>
+                        {widget.name}
+                    </h3>
+                    <p className="text-sm leading-relaxed mb-3" style={{ color: theme.colors.textSecondary }}>
+                        {widget.description}
+                    </p>
+
+                    {showEnableHint && (
+                        <div className="mb-3 text-xs px-2 py-1 rounded bg-blue-500/10 text-blue-500 font-medium inline-block">
+                            Enables &quot;Remember This&quot;
+                        </div>
+                    )}
+
+                    {/* Example Preview */}
+                    {example && (
+                        <div className="mb-3 p-3 rounded-lg text-xs" style={{ background: theme.colors.surfaceHover }}>
+                            <div className="font-semibold mb-1 opacity-80" style={{ color: theme.colors.text }}>
+                                Preview:
+                            </div>
+                            <div className="opacity-70 leading-relaxed" style={{ color: theme.colors.textSecondary }}>
+                                {example.preview}
+                            </div>
+                        </div>
+                    )}
                 </div>
-            </div>
-        </motion.button>
+            </motion.button>
+
+            {/* Expanded Details */}
+            <AnimatePresence>
+                {isExpanded && example && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                        style={{ borderTop: `1px solid ${theme.colors.border}` }}
+                    >
+                        <div className="p-5 pt-4">
+                            {example.useCase && (
+                                <div className="mb-3">
+                                    <div className="text-xs font-semibold mb-1.5 opacity-80" style={{ color: theme.colors.text }}>
+                                        Best for:
+                                    </div>
+                                    <div className="text-sm leading-relaxed" style={{ color: theme.colors.textSecondary }}>
+                                        {example.useCase}
+                                    </div>
+                                </div>
+                            )}
+                            <button
+                                onClick={onAdd}
+                                className="w-full py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                style={{
+                                    background: theme.gradients.button,
+                                    color: '#000',
+                                    boxShadow: theme.effects.shadow,
+                                }}
+                            >
+                                <Plus size={16} />
+                                Add to Dashboard
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Add Button (when not expanded) */}
+            {!isExpanded && (
+                <div className="px-5 pb-5">
+                    <button
+                        onClick={onAdd}
+                        className="w-full py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-semibold transition-colors"
+                        style={{ background: theme.colors.surfaceHover, color: theme.colors.text }}
+                    >
+                        <Plus size={16} />
+                        Add Widget
+                    </button>
+                </div>
+            )}
+        </motion.div>
     )
 }
