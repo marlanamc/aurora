@@ -210,22 +210,22 @@ export function NotebookWidget({
                       }}
                     />
 
-                    {/* Color Picker Button - Always visible but subtle */}
+                    {/* Color Picker Button - Larger and easier to click */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         e.preventDefault()
                         setShowColorPicker(showColorPicker === notebook.id ? null : notebook.id)
                       }}
-                      className="absolute bottom-2 right-2 p-1.5 rounded-md bg-black/30 backdrop-blur-sm opacity-60 hover:opacity-100 transition-opacity z-20 pointer-events-auto"
+                      className="absolute bottom-3 right-3 p-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all z-20 pointer-events-auto cursor-pointer"
                       title="Change color"
                       style={{ pointerEvents: 'auto' }}
                     >
                       <div
-                        className="w-3 h-3 rounded border"
+                        className="w-5 h-5 rounded border-2"
                         style={{
                           background: notebook.color,
-                          borderColor: 'rgba(255,255,255,0.5)',
+                          borderColor: 'rgba(0,0,0,0.2)',
                         }}
                       />
                     </button>
@@ -246,42 +246,53 @@ export function NotebookWidget({
 
                     {/* Color Picker Dropdown */}
                     {showColorPicker === notebook.id && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute bottom-full right-0 mb-2 p-2 rounded-lg z-30"
-                        style={{
-                          background: theme.components.card.background,
-                          border: theme.components.card.border,
-                          boxShadow: theme.effects.shadow,
-                          pointerEvents: 'auto',
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          e.preventDefault()
-                        }}
-                      >
-                        <div className="grid grid-cols-5 gap-2">
-                          {NOTEBOOK_COLORS.map((color) => (
-                            <button
-                              key={color}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                e.preventDefault()
-                                updateNotebookColor(notebook.id, color)
-                              }}
-                              className="w-6 h-6 rounded border-2 transition-all hover:scale-110 cursor-pointer"
-                              style={{
-                                background: color,
-                                borderColor: notebook.color === color ? theme.colors.primary : 'transparent',
-                                pointerEvents: 'auto',
-                              }}
-                              title={color}
-                            />
-                          ))}
-                        </div>
-                      </motion.div>
+                      <>
+                        {/* Backdrop to close on outside click */}
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowColorPicker(null)
+                          }}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          className="absolute bottom-full right-0 mb-3 p-3 rounded-xl z-50 shadow-2xl"
+                          style={{
+                            background: theme.components.card.background,
+                            border: `2px solid ${theme.colors.border}`,
+                            boxShadow: theme.effects.shadowHover,
+                            pointerEvents: 'auto',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                          }}
+                        >
+                          <div className="grid grid-cols-5 gap-3">
+                            {NOTEBOOK_COLORS.map((color) => (
+                              <button
+                                key={color}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  e.preventDefault()
+                                  updateNotebookColor(notebook.id, color)
+                                }}
+                                className="w-8 h-8 rounded-lg border-2 transition-all hover:scale-125 active:scale-110 cursor-pointer shadow-sm"
+                                style={{
+                                  background: color,
+                                  borderColor: notebook.color === color ? theme.colors.primary : 'rgba(0,0,0,0.1)',
+                                  borderWidth: notebook.color === color ? '3px' : '2px',
+                                  pointerEvents: 'auto',
+                                }}
+                                title={color}
+                              />
+                            ))}
+                          </div>
+                        </motion.div>
+                      </>
                     )}
                   </div>
 
