@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { listen } from '@tauri-apps/api/event'
 import { greet, scanDirectories, dbGetAllFiles, dbGetFileCount, watchSetPaths, onFileCreated, onFileModified, onFileRemoved, type FileInfo } from '@/lib/tauri'
 import { RecentActivitySidebar } from '@/components/RecentActivitySidebar'
+import { QuickAccessPanel } from '@/components/QuickAccessPanel'
 import { ValuesIntegration } from '@/components/ValuesIntegration'
 import { ValueDashboard } from '@/components/ValueDashboard'
 import { SettingsModal } from '@/components/SettingsModal'
@@ -1034,7 +1035,10 @@ export default function HomePage() {
           </div>
           <MonthlyCalendar />
           <div className="relative">
-            <RecentActivitySidebar files={files} />
+            <QuickAccessPanel 
+              files={files}
+              pinnedItems={selectedValueId ? (settings.pinnedByValue?.[selectedValueId] ?? []) : []}
+            />
           </div>
         </div>
       </aside>
