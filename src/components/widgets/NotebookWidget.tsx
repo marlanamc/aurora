@@ -160,21 +160,28 @@ export function NotebookWidget({
                       />
                     </div>
 
-                    {/* "notebook" Text on Cover - Script-like */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    {/* Folder Title on Cover */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
                       <div
                         className="text-center"
                         style={{
                           fontFamily: 'Georgia, serif',
-                          fontSize: '14px',
-                          fontWeight: 400,
-                          color: 'rgba(255,255,255,0.7)',
-                          textShadow: '0 1px 2px rgba(0,0,0,0.2)',
-                          letterSpacing: '0.5px',
-                          transform: 'rotate(-2deg)',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          color: 'rgba(255,255,255,0.85)',
+                          textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                          letterSpacing: '0.3px',
+                          transform: 'rotate(-1deg)',
+                          lineHeight: '1.3',
+                          maxWidth: '100%',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
                         }}
                       >
-                        notebook
+                        {notebook.name}
                       </div>
                     </div>
 
@@ -254,14 +261,8 @@ export function NotebookWidget({
                     )}
                   </div>
 
-                  {/* Label Below Notebook */}
+                  {/* Label Below Notebook - Just show date */}
                   <div className="mt-2 text-center">
-                    <div
-                      className="text-xs font-medium truncate mb-0.5"
-                      style={{ color: theme.colors.text }}
-                    >
-                      {notebook.name}
-                    </div>
                     <div
                       className="text-xs opacity-60"
                       style={{ color: theme.colors.textSecondary }}
