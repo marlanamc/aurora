@@ -161,24 +161,22 @@ export function NotebookWidget({
                     </div>
 
                     {/* Folder Title on Cover */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-4">
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-3 py-2">
                       <div
-                        className="text-center"
+                        className="text-center break-words"
                         style={{
                           fontFamily: 'Georgia, serif',
-                          fontSize: '13px',
+                          fontSize: '12px',
                           fontWeight: 500,
                           color: 'rgba(255,255,255,0.85)',
                           textShadow: '0 1px 3px rgba(0,0,0,0.3)',
                           letterSpacing: '0.3px',
                           transform: 'rotate(-1deg)',
-                          lineHeight: '1.3',
+                          lineHeight: '1.4',
                           maxWidth: '100%',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word',
+                          hyphens: 'auto',
                         }}
                       >
                         {notebook.name}
