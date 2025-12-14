@@ -16,7 +16,6 @@ import { useHasMounted } from '@/lib/useHasMounted'
 import { useAuroraSettings } from '@/lib/settings'
 import { VALUE_ICON_OPTIONS } from '@/lib/value-icons'
 import { MonthlyCalendar } from '@/components/MonthlyCalendar'
-import { AppleCalendarAgenda } from '@/components/AppleCalendarAgenda'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { WelcomeOnboarding, hasCompletedWelcome } from '@/components/WelcomeOnboarding'
 import { EmptyState } from '@/components/EmptyState'
@@ -1012,7 +1011,6 @@ export default function HomePage() {
             </button>
           </div>
           <MonthlyCalendar />
-          <AppleCalendarAgenda />
           <div className="relative">
             <RecentActivitySidebar files={files} />
           </div>
