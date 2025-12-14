@@ -68,7 +68,7 @@ export function EnergyTrackerWidget({
       newLog,
     ].slice(-30) // Keep last 30 logs
 
-    mergeWidgetData(widgetId, { logs: updatedLogs }, { logs: [] })
+    mergeWidgetData<{ logs: EnergyLog[] }>(widgetId, { logs: updatedLogs }, { logs: [] })
     setSelectedLevel(null)
   }
 

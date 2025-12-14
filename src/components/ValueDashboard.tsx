@@ -101,10 +101,7 @@ export function ValueDashboard({ valueId, files, theme, settings, updateSettings
 
   useEffect(() => {
     if (!isEditing) setIsPickerOpen(false)
-  }, [isEditing])
-
-  useEffect(() => {
-    if (!isEditing) setIsPickerOpen(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing])
 
   const addWidget = (type: WidgetType) => {
@@ -844,7 +841,7 @@ function RelevantFilesWidget({
       <UnifiedCardHeader icon={FileText} title="Relevant Files" subtitle="Smart matches from your files" />
       {displayFiles.length === 0 ? (
         <div className="text-sm p-4 text-center opacity-60" style={{ color: 'var(--aurora-text-secondary)' }}>
-          Nothing matched yet. Add folders in Settings or use keywords like "tax", "project", etc.
+          Nothing matched yet. Add folders in Settings or use keywords like &quot;tax&quot;, &quot;project&quot;, etc.
         </div>
       ) : (
         <div className="space-y-2">

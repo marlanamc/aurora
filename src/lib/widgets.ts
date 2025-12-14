@@ -28,6 +28,10 @@ export type WidgetType =
   | 'affirmation'
   | 'pomodoro'
   | 'scratchpad'
+  | 'apple-calendar'
+  | 'quick-search'
+  | 'file-type-breakdown'
+  | 'energy-tracker'
 
 export type WidgetSpan = 1 | 2
 

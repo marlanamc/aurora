@@ -97,7 +97,7 @@ export function AffirmationWidget({
             setIndex(Math.floor(Math.random() * quotes.length))
         }
         setMounted(true)
-    }, [])
+    }, [savedIndex, quotes.length])
 
     const nextQuote = () => {
         const next = (index + 1) % quotes.length
@@ -143,7 +143,7 @@ export function AffirmationWidget({
                             className="text-lg font-medium leading-relaxed italic"
                             style={{ color: theme.colors.text, fontFamily: theme.fonts.display }}
                         >
-                            &quot;{QUOTES[index]}&quot;
+                            &quot;{quotes[index]}&quot;
                         </p>
                     </motion.div>
                 </AnimatePresence>

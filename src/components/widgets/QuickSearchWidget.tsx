@@ -57,7 +57,7 @@ export function QuickSearchWidget({
         { query: searchQuery, timestamp: Date.now() },
       ].slice(-10) // Keep last 10
       
-      mergeWidgetData(widgetId, { history: newHistory }, { history: [] })
+      mergeWidgetData<{ history: SearchHistoryItem[] }>(widgetId, { history: newHistory }, { history: [] })
     } catch (error) {
       console.error('Search failed:', error)
       setResults([])
@@ -76,6 +76,7 @@ export function QuickSearchWidget({
     }, 300)
 
     return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query])
 
   const handleSelectHistory = (histQuery: string) => {

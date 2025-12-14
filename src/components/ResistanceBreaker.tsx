@@ -195,31 +195,31 @@ export function ResistanceBreaker({ onActionSelected, favorites }: ResistanceBre
                 {getActionsForResistance(selectedResistance).map((action, index) => {
                   const isFavorite = favorites?.[selectedResistance]?.includes(action)
                   return (
-                  <motion.button
-                    key={index}
-                    className={`
-                      w-full rounded-lg p-4 text-left
-                      bg-white/80 backdrop-blur-sm
-                      border-2 border-white/60
-                      shadow-sm hover:shadow-md
-                      transition-all duration-200
-                      ${resistanceConfig[selectedResistance].color}
-                      font-medium
-                    `}
-                    onClick={() => handleActionSelect(action)}
-                    whileHover={{ scale: 1.02, x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span>{action}</span>
-                      {isFavorite && (
-                        <Sparkles size={16} className="text-yellow-500" />
-                      )}
-                    </div>
-                  </motion.button>
+                    <motion.button
+                      key={index}
+                      className={`
+                        w-full rounded-lg p-4 text-left
+                        bg-white/80 backdrop-blur-sm
+                        border-2 border-white/60
+                        shadow-sm hover:shadow-md
+                        transition-all duration-200
+                        ${resistanceConfig[selectedResistance].color}
+                        font-medium
+                      `}
+                      onClick={() => handleActionSelect(action)}
+                      whileHover={{ scale: 1.02, x: 4 }}
+                      whileTap={{ scale: 0.98 }}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{action}</span>
+                        {isFavorite && (
+                          <Sparkles size={16} className="text-yellow-500" />
+                        )}
+                      </div>
+                    </motion.button>
                   )
                 })}
               </div>
@@ -268,7 +268,7 @@ export function ResistanceBreaker({ onActionSelected, favorites }: ResistanceBre
                   </motion.button>
                 </div>
               </motion.div>
-            ) : (
+            ) : null}
           </motion.div>
         </AnimatePresence>
       )}

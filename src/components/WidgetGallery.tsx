@@ -253,7 +253,7 @@ function WidgetCard({ widget, theme, settings, onAdd }: {
 
                 {showEnableHint && (
                     <div className="mb-3 text-xs px-2 py-1 rounded bg-blue-500/10 text-blue-500 font-medium inline-block">
-                        Enables "Remember This"
+                        Enables &quot;Remember This&quot;
                     </div>
                 )}
 
