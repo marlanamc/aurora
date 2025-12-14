@@ -562,6 +562,8 @@ export default function HomePage() {
                       </button>
                       <button
                         onClick={() => {
+                          // Ensure we're on a dashboard that can have widgets
+                          // If no value is selected, stay on homebase (it has its own dashboard)
                           setIsEditing(true)
                           setIsPickerOpen(true)
                           setShowQuickActions(false)
@@ -1126,6 +1128,12 @@ export default function HomePage() {
           resetSettings()
           setThemeMode('system')
         }}
+      />
+
+      <GlobalSearch
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        theme={theme}
       />
 
     </div>
