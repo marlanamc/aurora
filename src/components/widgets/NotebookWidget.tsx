@@ -108,53 +108,108 @@ export function NotebookWidget({
               >
                 {/* Notebook Card */}
                 <div
-                  className="relative rounded-lg p-4 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="relative rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
                   style={{
-                    background: `linear-gradient(135deg, ${notebook.color}15, ${notebook.color}08)`,
-                    border: `2px solid ${notebook.color}40`,
-                    boxShadow: `0 2px 8px ${notebook.color}20`,
+                    background: `linear-gradient(135deg, ${notebook.color}25, ${notebook.color}15)`,
+                    border: `2px solid ${notebook.color}60`,
+                    boxShadow: `0 4px 12px ${notebook.color}30, inset 0 1px 0 rgba(255,255,255,0.1)`,
                   }}
                   onClick={() => openNotebook(notebook.path)}
                 >
-                  {/* Notebook Spine Effect */}
+                  {/* Notebook Binding/Spine - Wider and more prominent */}
                   <div
-                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
-                    style={{ background: notebook.color }}
+                    className="absolute left-0 top-0 bottom-0 w-3"
+                    style={{
+                      background: `linear-gradient(90deg, ${notebook.color}, ${notebook.color}dd)`,
+                      boxShadow: `inset -2px 0 4px rgba(0,0,0,0.2), 2px 0 4px rgba(0,0,0,0.1)`,
+                    }}
                   />
+                  
+                  {/* Spiral binding holes */}
+                  <div className="absolute left-1.5 top-0 bottom-0 flex flex-col justify-start gap-1 pt-2 pb-2">
+                    {[...Array(5)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="w-1 h-1 rounded-full"
+                        style={{
+                          background: `rgba(0,0,0,0.3)`,
+                          boxShadow: `inset 0 0 2px rgba(255,255,255,0.2)`,
+                        }}
+                      />
+                    ))}
+                  </div>
 
-                  {/* Notebook Lines (ruled paper effect) */}
+                  {/* Notebook Cover Texture */}
                   <div
-                    className="absolute inset-0 pointer-events-none opacity-10 rounded-lg"
+                    className="absolute inset-0 pointer-events-none opacity-5"
                     style={{
                       backgroundImage: `repeating-linear-gradient(
+                        45deg,
                         transparent,
-                        transparent 2px,
-                        ${notebook.color} 2px,
-                        ${notebook.color} 4px
+                        transparent 10px,
+                        rgba(0,0,0,0.1) 10px,
+                        rgba(0,0,0,0.1) 11px
                       )`,
                     }}
                   />
 
-                  <div className="relative z-10 flex items-center justify-between">
+                  {/* Pages Effect - Multiple layers */}
+                  <div className="absolute left-3 top-0 bottom-0 right-0">
+                    {/* Top page edge shadow */}
+                    <div
+                      className="absolute top-0 left-0 right-0 h-px"
+                      style={{
+                        background: `linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)`,
+                      }}
+                    />
+                    
+                    {/* Ruled paper lines */}
+                    <div
+                      className="absolute inset-0 pointer-events-none opacity-20"
+                      style={{
+                        backgroundImage: `repeating-linear-gradient(
+                          transparent,
+                          transparent 20px,
+                          ${notebook.color}40 20px,
+                          ${notebook.color}40 21px
+                        )`,
+                        backgroundPosition: '0 8px',
+                      }}
+                    />
+                    
+                    {/* Margin line */}
+                    <div
+                      className="absolute left-8 top-0 bottom-0 w-px opacity-30"
+                      style={{
+                        background: `${notebook.color}60`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="relative z-10 flex items-center justify-between pl-6 pr-4 py-4">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div
-                        className="p-2 rounded-lg shrink-0"
+                        className="p-2.5 rounded-md shrink-0 shadow-sm"
                         style={{
-                          background: `${notebook.color}20`,
+                          background: `${notebook.color}30`,
                           color: notebook.color,
+                          border: `1px solid ${notebook.color}50`,
                         }}
                       >
-                        <Folder size={18} />
+                        <Folder size={18} strokeWidth={2} />
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pl-2">
                         <div
-                          className="font-semibold text-sm truncate"
-                          style={{ color: theme.colors.text }}
+                          className="font-bold text-sm truncate mb-0.5"
+                          style={{ 
+                            color: theme.colors.text,
+                            textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                          }}
                         >
                           {notebook.name}
                         </div>
                         <div
-                          className="text-xs truncate opacity-60"
+                          className="text-xs truncate opacity-50 font-mono"
                           style={{ color: theme.colors.textSecondary }}
                         >
                           {notebook.path}
