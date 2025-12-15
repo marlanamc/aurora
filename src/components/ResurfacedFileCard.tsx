@@ -38,12 +38,12 @@ export function ResurfacedFileCard({ file, reason, explanation, onClick, theme }
         border: theme.effects.borderStyle,
         fontFamily: theme.fonts.body,
       }}
-      whileHover={{ scale: 1.03, y: -6 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.99 }}
       onClick={handleClick}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, type: "spring", stiffness: 120 }}
+      initial={false}
+      animate={false}
+      transition={{ duration: 0.15 }}
     >
       {/* Decorative background pattern with theme awareness */}
       <div className="absolute inset-0 opacity-10">
@@ -56,23 +56,14 @@ export function ResurfacedFileCard({ file, reason, explanation, onClick, theme }
         />
       </div>
 
-      {/* Animated glow orb on hover */}
-      <motion.div
-        className="absolute w-32 h-32 rounded-full blur-2xl opacity-0 group-hover:opacity-30 transition-opacity duration-500"
+      {/* Static glow orb on hover - no animation for performance */}
+      <div
+        className="absolute w-32 h-32 rounded-full blur-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-300"
         style={{
           background: reasonStyle.gradient,
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          willChange: 'transform, opacity',
-        }}
-        animate={{
-          scale: [1, 1.2, 1],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: "easeInOut",
         }}
       />
 
@@ -138,19 +129,9 @@ export function ResurfacedFileCard({ file, reason, explanation, onClick, theme }
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.2 }}
         >
-          <motion.span
-            className="text-lg"
-            animate={{
-              rotate: [0, 10, -10, 0],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          >
+          <span className="text-lg">
             {React.createElement(reasonStyle.icon, { size: 18 })}
-          </motion.span>
+          </span>
           <span>{reason}</span>
         </motion.div>
       </div>

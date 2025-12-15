@@ -20,16 +20,29 @@ export type CoreValue = {
     colorPair?: readonly [string, string]
 }
 
+export type CoreValueDraft = Omit<CoreValue, 'id'>
+
 type Props = {
     activeValues: CoreValue[]
     archivedValues: CoreValue[]
     theme: GlobalTheme
     onUpdate: (id: string, partial: Partial<CoreValue>) => void
-    onAdd: (name: string) => void
+    onAdd: (draft: CoreValueDraft) => string | null | undefined
     onArchive: (id: string) => void
     onRestore: (id: string) => void
     onRemove: (id: string) => void
     onReorder: (values: CoreValue[]) => void
+}
+
+function keywordsToSearchQuery(raw: string): string {
+    const parts = raw
+        .split(/[,\n]/g)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 12)
+
+    const normalized = parts.map((p) => (/\s/.test(p) ? `"${p.replace(/\"/g, '')}"` : p))
+    return normalized.join(' OR ')
 }
 
 export function CoreValuesEditor({
@@ -44,16 +57,23 @@ export function CoreValuesEditor({
     onReorder,
 }: Props) {
     const [expandedId, setExpandedId] = useState<string | null>(null)
+    const [recentlyAddedId, setRecentlyAddedId] = useState<string | null>(null)
+    const [isAddOpen, setIsAddOpen] = useState(false)
+    const [draftName, setDraftName] = useState('')
+    const [draftIconId, setDraftIconId] = useState<ValueIconId>('sparkles')
+    const [draftKeywords, setDraftKeywords] = useState('')
+    const [draftPaletteIndex, setDraftPaletteIndex] = useState(0)
 
-    const handleAdd = () => {
+    const openAdd = () => {
         if (activeValues.length >= MAX_CORE_VALUES) {
             window.alert(`You can have up to ${MAX_CORE_VALUES} values.`)
             return
         }
-        const name = window.prompt('Name a core value (example: Creativity):')
-        if (name?.trim()) {
-            onAdd(name.trim())
-        }
+        setDraftName('')
+        setDraftIconId('sparkles')
+        setDraftKeywords('')
+        setDraftPaletteIndex(0)
+        setIsAddOpen(true)
     }
 
     const toggleExpand = (id: string) => {
@@ -62,20 +82,168 @@ export function CoreValuesEditor({
 
     return (
         <div className="space-y-6">
+            {/* Add Value Dialog */}
+            {isAddOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <button
+                        type="button"
+                        className="absolute inset-0"
+                        style={{ background: 'rgba(0,0,0,0.45)' }}
+                        onClick={() => setIsAddOpen(false)}
+                        aria-label="Close add focus area dialog"
+                    />
+                    <div
+                        className="relative w-full max-w-xl rounded-2xl p-5"
+                        style={{
+                            background: theme.components.card.background,
+                            border: theme.components.card.border,
+                            boxShadow: theme.effects.shadowHover,
+                            backdropFilter: theme.effects.blur,
+                        }}
+                    >
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <div>
+                                <div className="text-lg font-black">Add a Focus Area</div>
+                                <div className="text-xs opacity-70 mt-1">
+                                    Give it a title, pick a color + icon, then add a few keywords so Aurora can surface relevant files.
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
+                                onClick={() => setIsAddOpen(false)}
+                                aria-label="Close"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold opacity-70 uppercase tracking-wider">Title</label>
+                                <input
+                                    value={draftName}
+                                    onChange={(e) => setDraftName(e.target.value)}
+                                    className="w-full rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-current bg-black/5 dark:bg-white/5"
+                                    placeholder="e.g. Curiosity"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <div className="text-xs font-semibold opacity-70 uppercase tracking-wider">Color</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {CORE_VALUE_PALETTE.map((pair, idx) => (
+                                            <button
+                                                key={`${pair[0]}-${pair[1]}`}
+                                                type="button"
+                                                className="w-9 h-9 rounded-xl border transition-transform active:scale-95"
+                                                style={{
+                                                    borderColor: idx === draftPaletteIndex ? theme.colors.primary : 'rgba(255,255,255,0.18)',
+                                                    background: `linear-gradient(135deg, ${pair[0]}, ${pair[1]})`,
+                                                }}
+                                                onClick={() => setDraftPaletteIndex(idx)}
+                                                aria-label={`Select color palette ${idx + 1}`}
+                                                title={`${pair[0]} → ${pair[1]}`}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="text-xs font-semibold opacity-70 uppercase tracking-wider">Icon</div>
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="h-10 w-10 rounded-xl flex items-center justify-center"
+                                            style={{ background: `${CORE_VALUE_PALETTE[draftPaletteIndex][0]}20` }}
+                                        >
+                                            {(() => {
+                                                const Icon = VALUE_ICON_OPTIONS[draftIconId] ?? Sparkles
+                                                return <Icon size={20} style={{ color: CORE_VALUE_PALETTE[draftPaletteIndex][0] }} />
+                                            })()}
+                                        </div>
+                                        <select
+                                            value={draftIconId}
+                                            onChange={(e) => setDraftIconId(e.target.value as ValueIconId)}
+                                            className="flex-1 rounded-xl px-3 py-2 text-sm bg-black/5 dark:bg-white/5"
+                                        >
+                                            {Object.keys(VALUE_ICON_OPTIONS).map((id) => (
+                                                <option key={id} value={id}>
+                                                    {id}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold opacity-70 uppercase tracking-wider">Keywords (optional)</label>
+                                <textarea
+                                    value={draftKeywords}
+                                    onChange={(e) => setDraftKeywords(e.target.value)}
+                                    className="w-full rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-current bg-black/5 dark:bg-white/5 resize-none"
+                                    rows={2}
+                                    placeholder="e.g. lesson plans, esol, reading, curriculum"
+                                />
+                                <div className="text-[10px] opacity-60">
+                                    These become a Smart Search query like: <span className="font-mono">word1 OR word2</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    className="px-3 py-2 rounded-xl text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/5"
+                                    onClick={() => setIsAddOpen(false)}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    className="px-4 py-2 rounded-xl text-sm font-black text-white shadow-md transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{ background: theme.gradients.button }}
+                                    disabled={draftName.trim().length === 0}
+                                    onClick={() => {
+                                        const name = draftName.trim()
+                                        const colorPair = CORE_VALUE_PALETTE[draftPaletteIndex]
+                                        const searchQuery = keywordsToSearchQuery(draftKeywords)
+                                        const createdId = onAdd({
+                                            name,
+                                            iconId: draftIconId,
+                                            colorPair,
+                                            ...(searchQuery ? { searchQuery } : {}),
+                                        })
+                                        if (createdId) {
+                                            setExpandedId(createdId)
+                                            setRecentlyAddedId(createdId)
+                                        }
+                                        setIsAddOpen(false)
+                                    }}
+                                >
+                                    Create area
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <div className="text-sm opacity-70">
-                    {activeValues.length}/{MAX_CORE_VALUES} active values
+                    {activeValues.length}/{MAX_CORE_VALUES} active areas
                 </div>
                 <button
-                    onClick={handleAdd}
+                    type="button"
+                    onClick={openAdd}
                     disabled={activeValues.length >= MAX_CORE_VALUES}
                     className="px-4 py-2 rounded-xl text-sm font-bold text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-transform active:scale-95"
                     style={{ background: theme.gradients.button }}
                 >
                     <span className="flex items-center gap-2">
                         <Plus size={16} />
-                        <span>Add Value</span>
+                        <span>Add Area</span>
                     </span>
                 </button>
             </div>
@@ -92,6 +260,7 @@ export function CoreValuesEditor({
                         onUpdate={onUpdate}
                         onArchive={onArchive}
                         onRemove={onRemove}
+                        showGuide={recentlyAddedId === value.id && expandedId === value.id}
                     />
                 ))}
             </Reorder.Group>
@@ -137,6 +306,7 @@ function CoreValueRow({
     onUpdate,
     onArchive,
     onRemove,
+    showGuide,
 }: {
     value: CoreValue
     theme: GlobalTheme
@@ -145,6 +315,7 @@ function CoreValueRow({
     onUpdate: (id: string, partial: Partial<CoreValue>) => void
     onArchive: (id: string) => void
     onRemove: (id: string) => void
+    showGuide: boolean
 }) {
     const controls = useDragControls()
     const Icon = VALUE_ICON_OPTIONS[value.iconId] ?? Sparkles
@@ -170,7 +341,7 @@ function CoreValueRow({
                         <GripVertical size={16} />
                     </button>
 
-                    <div className="flex-1 flex items-center gap-3">
+                    <div className="flex-1 flex items-center gap-3 min-w-0">
                         {/* Icon Picker */}
                         <div className="relative group/icon">
                             <div
@@ -192,9 +363,97 @@ function CoreValueRow({
                             </select>
                         </div>
 
+                        {/* Title */}
+                        <div className="min-w-0 flex-1">
+                            <label className="block text-[10px] font-semibold opacity-60 uppercase tracking-wider mb-1">
+                                Title
+                            </label>
+                            <input
+                                value={value.name}
+                                onChange={(e) => onUpdate(value.id, { name: e.target.value })}
+                                className="w-full rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:ring-1 focus:ring-current bg-black/5 dark:bg-white/5 truncate"
+                                placeholder="Value name"
+                            />
+                        </div>
+
+                        {/* Expand / Actions */}
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={onToggleExpand}
+                                className="h-10 w-10 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                title={isExpanded ? 'Collapse' : 'Edit details'}
+                            >
+                                {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onArchive(value.id)}
+                                className="h-10 w-10 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                                title="Archive"
+                            >
+                                <Archive size={18} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (window.confirm(`Delete “${value.name}”? This can't be undone.`)) onRemove(value.id)
+                                }}
+                                className="h-10 w-10 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-red-500 transition-colors"
+                                title="Delete"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {isExpanded && (
+                    <div className="p-4 pt-2 space-y-4 border-t border-white/10">
+                        {showGuide && (
+                            <div
+                                className="p-3 rounded-xl text-xs"
+                                style={{
+                                    background: `${currentColor}12`,
+                                    border: `1px solid ${currentColor}35`,
+                                }}
+                            >
+                                <div className="font-bold mb-1">Next steps</div>
+                                <ol className="list-decimal pl-4 space-y-1 opacity-80">
+                                    <li>Pick a color + icon you’ll recognize fast.</li>
+                                    <li>Add a few keywords so “Relevant Files” can auto-surface matches.</li>
+                                    <li>Go to Homebase → open this value → add widgets + pin your essentials.</li>
+                                </ol>
+                            </div>
+                        )}
+
+                        {/* Color Palette */}
+                        <div className="space-y-2">
+                            <div className="text-xs font-semibold opacity-70 uppercase tracking-wider">Color</div>
+                            <div className="flex flex-wrap gap-2">
+                                {CORE_VALUE_PALETTE.map((pair) => {
+                                    const isActive = value.colorPair?.[0] === pair[0] && value.colorPair?.[1] === pair[1]
+                                    return (
+                                        <button
+                                            key={`${pair[0]}-${pair[1]}`}
+                                            type="button"
+                                            className="w-9 h-9 rounded-xl border transition-transform active:scale-95"
+                                            style={{
+                                                borderColor: isActive ? currentColor : 'rgba(255,255,255,0.18)',
+                                                background: `linear-gradient(135deg, ${pair[0]}, ${pair[1]})`,
+                                            }}
+                                            onClick={() => onUpdate(value.id, { colorPair: pair })}
+                                            title={`${pair[0]} → ${pair[1]}`}
+                                            aria-label="Select color"
+                                        />
+                                    )
+                                })}
+                            </div>
+                        </div>
+
                         {/* Purpose */}
                         <div className="space-y-1">
-                            <label className="text-xs font-semibold opacity-70 uppercase tracking-wider">Purpose</label>
+                            <label className="text-xs font-semibold opacity-70 uppercase tracking-wider">Purpose (optional)</label>
                             <textarea
                                 value={value.purpose ?? ''}
                                 onChange={(e) => onUpdate(value.id, { purpose: e.target.value })}
@@ -203,12 +462,11 @@ function CoreValueRow({
                                 placeholder="What does this value mean to you?"
                                 style={{ fontFamily: theme.fonts.body }}
                             />
-                            <p className="text-[10px] opacity-50">Example: &quot;Compassion over perfection.&quot;</p>
                         </div>
 
                         {/* Tone */}
                         <div className="space-y-1">
-                            <label className="text-xs font-semibold opacity-70 uppercase tracking-wider">Tone</label>
+                            <label className="text-xs font-semibold opacity-70 uppercase tracking-wider">Tone (optional)</label>
                             <textarea
                                 value={value.tone ?? ''}
                                 onChange={(e) => onUpdate(value.id, { tone: e.target.value })}
@@ -217,7 +475,6 @@ function CoreValueRow({
                                 placeholder="How should this value feel?"
                                 style={{ fontFamily: theme.fonts.body }}
                             />
-                            <p className="text-[10px] opacity-50">Example: &quot;Warm, light, and human.&quot;</p>
                         </div>
 
                         {/* Search Query */}
@@ -235,7 +492,7 @@ function CoreValueRow({
                             </p>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         </Reorder.Item>
     )

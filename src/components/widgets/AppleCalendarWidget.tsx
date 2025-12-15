@@ -27,6 +27,10 @@ function formatTimeRange(event: AppleCalendarEvent) {
 
 type ViewMode = 'today' | 'week'
 
+type AppleCalendarWidgetData = {
+  viewMode: ViewMode
+}
+
 export function AppleCalendarWidget({
   theme,
   widgetId,
@@ -38,7 +42,8 @@ export function AppleCalendarWidget({
   getWidgetData: <T,>(id: string, fallback: T) => T
   mergeWidgetData: <T extends Record<string, unknown>>(id: string, partial: Partial<T>, fallback: T) => void
 }) {
-  const viewMode = getWidgetData<ViewMode>(widgetId, 'today')
+  const raw = getWidgetData<AppleCalendarWidgetData | ViewMode>(widgetId, { viewMode: 'today' } as AppleCalendarWidgetData)
+  const viewMode: ViewMode = typeof raw === 'string' ? raw : raw.viewMode
   const today = useMemo(() => new Date(), [])
   const [events, setEvents] = useState<AppleCalendarEvent[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
@@ -83,7 +88,7 @@ export function AppleCalendarWidget({
 
   const toggleView = () => {
     const nextMode: ViewMode = viewMode === 'today' ? 'week' : 'today'
-    mergeWidgetData(widgetId, { viewMode: nextMode }, { viewMode: 'today' })
+    mergeWidgetData<AppleCalendarWidgetData>(widgetId, { viewMode: nextMode }, { viewMode: 'today' })
   }
 
   return (

@@ -14,11 +14,15 @@ import { type ThemeId } from '@/lib/resurfacing-themes'
 import { Search, Sun, Moon, Settings as SettingsIcon, Home, X, RefreshCw, Palette } from '@/lib/icons'
 import { useThemeMode } from '@/lib/useThemeMode'
 import { useHasMounted } from '@/lib/useHasMounted'
+import { useTimeBasedUI } from '@/lib/useTimeBasedUI'
 import { useAuroraSettings } from '@/lib/settings'
 import { VALUE_ICON_OPTIONS } from '@/lib/value-icons'
+import { CORE_VALUE_PALETTE } from '@/lib/value-colors'
+import { createWidgetId } from '@/lib/widgets'
 import { MonthlyCalendar } from '@/components/MonthlyCalendar'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { WelcomeOnboarding, hasCompletedWelcome } from '@/components/WelcomeOnboarding'
+import { QuickCapture } from '@/components/QuickCapture'
 
 const VALUE_PALETTE = [
   ['#10B981', '#34D399'],
@@ -47,7 +51,7 @@ export default function HomePage() {
   const hasAutoIndexedRef = useRef(false)
   const [showWelcome, setShowWelcome] = useState(false)
 
-  const [settings, updateSettings, resetSettings] = useAuroraSettings()
+  const [settings, updateSettings, resetSettings, recordFocusAreaActivity] = useAuroraSettings()
   const [selectedValueId, setSelectedValueId] = useState<string>('')
   const currentTheme = settings.themeId
   const initialDisplayNameRef = useRef(settings.displayName)
@@ -61,6 +65,7 @@ export default function HomePage() {
 
   const hasMounted = useHasMounted()
   const theme: GlobalTheme = useMemo(() => getGlobalTheme(currentTheme, themeMode), [currentTheme, themeMode])
+  const { complexity: uiComplexity, isBusyTime } = useTimeBasedUI()
 
   // File Drag & Drop
   useEffect(() => {
@@ -118,7 +123,12 @@ export default function HomePage() {
     setSelectedValueId('')
   }, [activeCoreValues, selectedValueId])
 
-  const selectValue = (id: string) => setSelectedValueId(id)
+  const selectValue = (id: string) => {
+    setSelectedValueId(id)
+    if (id !== '') {
+      recordFocusAreaActivity(id)
+    }
+  }
   const goHomebase = () => setSelectedValueId('')
 
   const activeValue = useMemo(
@@ -136,7 +146,7 @@ export default function HomePage() {
 
   const breadcrumbLabel = useMemo(() => {
     if (!selectedValueId) return 'Homebase'
-    return `Homebase / ${activeValue?.name ?? 'Core Value'}`
+    return `Homebase / ${activeValue?.name ?? 'Focus Area'}`
   }, [activeValue?.name, selectedValueId])
 
   const VALUE_PANEL_WIDTH_PX = 288 // tailwind w-72
@@ -377,9 +387,6 @@ export default function HomePage() {
             backdropFilter: theme.effects.blur,
             borderBottom: `1px solid ${theme.components.header.borderColor}`,
           }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6 }}
         >
           {/* macOS titlebar overlay drag region */}
           {/* macOS titlebar overlay drag region - FULL HEADER COVERAGE */}
@@ -401,27 +408,24 @@ export default function HomePage() {
             className="relative z-10 px-6 pb-2 pointer-events-none" // Added pointer-events-none, reduced pb-5 to pb-2
             style={{ paddingTop: 'calc(0.5rem + var(--aurora-titlebar-height))' }} // Reduced 1.25rem to 0.5rem
           >
-            <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="max-w-6xl mx-auto grid grid-cols-[auto_1fr_auto] items-center gap-4">
               {/* Left: Branding */}
               {/* Left: Branding */}
               <motion.button
                 type="button"
                 onClick={goHomebase}
                 className="text-left pointer-events-auto" // Added pointer-events-auto
-                initial={{ x: -50, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
                 title="Go to Homebase"
                 aria-label="Go to Homebase"
               >
                 <div className="flex items-center gap-3 mb-1">
-                  <div className="text-2xl"> {/* Reduced from 4xl */}
+                  <div className="text-3xl"> {/* Larger icon */}
                     <theme.icon size="1em" strokeWidth={2} />
                   </div>
 
                   <div>
                     <h1
-                      className="text-xl font-black leading-none mb-1" // Reduced from 3xl
+                      className="text-3xl sm:text-4xl font-black leading-none mb-1"
                       style={{
                         fontFamily: theme.fonts.display,
                         background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary})`,
@@ -433,7 +437,7 @@ export default function HomePage() {
                       Aurora OS
                     </h1>
                     <p
-                      className="text-[10px] font-medium tracking-wide" // Reduced from text-xs
+                      className="text-xs sm:text-sm font-medium tracking-wide"
                       style={{ color: theme.colors.textSecondary }}
                     >
                       {breadcrumbLabel}
@@ -442,12 +446,77 @@ export default function HomePage() {
                 </div>
               </motion.button>
 
+              {/* Active Value (inline, centered) */}
+              {/* Active Value (inline, centered) */}
+              <div className="justify-self-center min-w-[200px] h-16 flex items-center justify-center pointer-events-none">
+                <AnimatePresence mode="wait">
+                  {activeValue && (() => {
+                    const Icon = VALUE_ICON_OPTIONS[activeValue.iconId]
+                    const iconColor = activeValueColors?.primary ?? theme.colors.primary
+                    const secondaryColor = activeValueColors?.secondary ?? theme.colors.secondary
+
+                    return (
+                      <motion.div
+                        key={activeValue.id}
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="relative group cursor-default pointer-events-auto"
+                      >
+                        {/* Ambient Glow */}
+                        <div 
+                          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-12 rounded-full opacity-20 blur-xl pointer-events-none transition-opacity duration-500 group-hover:opacity-30"
+                          style={{ background: iconColor }}
+                        />
+
+                        <div className="flex items-center gap-3 relative z-10">
+                          {/* Icon Container */}
+                          <div 
+                            className="relative"
+                          >
+                              <div 
+                                className="absolute inset-0 blur-md opacity-40"
+                                style={{ background: iconColor }}
+                              />
+                              {Icon && (
+                                <Icon 
+                                  size={28} 
+                                  strokeWidth={2.5} 
+                                  className="relative z-10"
+                                  style={{ 
+                                    color: iconColor,
+                                    filter: `drop-shadow(0 2px 4px ${iconColor}40)`
+                                  }} 
+                                />
+                              )}
+                          </div>
+
+                          {/* Text with Gradient */}
+                          <div className="flex flex-col">
+                            <span 
+                              className="text-2xl font-bold tracking-tight leading-none"
+                              style={{ 
+                                // fontFamily: theme.fonts.display, // Use body font to match other headers
+                                background: `linear-gradient(135deg, ${iconColor}, ${secondaryColor})`,
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                filter: `drop-shadow(0 2px 10px ${iconColor}20)`
+                              }}
+                            >
+                              {activeValue.name}
+                            </span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )
+                  })()}
+                </AnimatePresence>
+              </div>
+
               {/* Right: Actions */}
               <motion.div
                 className="flex items-center gap-4 pointer-events-auto" // Added pointer-events-auto
-                initial={{ x: 50, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
               >
                 {/* Settings */}
                 <motion.button
@@ -531,7 +600,7 @@ export default function HomePage() {
           </div>
 
           {/* Quick Actions Dropdown */}
-          <AnimatePresence>
+          <AnimatePresence initial={false}>
             {showQuickActions && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
@@ -617,9 +686,6 @@ export default function HomePage() {
                             y: -2,
                           }}
                           whileTap={{ scale: 0.95 }}
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.03 }}
                         >
                           <div className="flex flex-col items-center gap-2">
                             <span className="text-3xl leading-none">{themeOption.emoji}</span>
@@ -628,12 +694,9 @@ export default function HomePage() {
                             </span>
                           </div>
                           {currentTheme === themeOption.id && (
-                            <motion.div
+                            <div
                               className="absolute top-2 right-2 w-2 h-2 rounded-full"
                               style={{ background: theme.colors.primary }}
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{ type: 'spring', stiffness: 300 }}
                             />
                           )}
                         </motion.button>
@@ -646,23 +709,26 @@ export default function HomePage() {
           </AnimatePresence>
 
           {/* Universal Drop Zone */}
-          <AnimatePresence>
+          <AnimatePresence initial={false}>
             {isDragging && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-md"
-                style={{ background: 'rgba(0,0,0,0.6)' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center"
+                style={{ 
+                  background: 'rgba(0,0,0,0.6)',
+                  backdropFilter: 'blur(4px)',
+                  WebkitBackdropFilter: 'blur(4px)',
+                }}
+                transition={{
+                  duration: 0.2,
+                }}
               >
                 <div className="absolute inset-4 border-4 border-dashed rounded-3xl flex flex-col items-center justify-center gap-6" style={{ borderColor: theme.colors.primary }}>
-                  <motion.div
-                    animate={{ y: [0, -20, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                    className="p-8 rounded-full bg-white/10"
-                  >
+                  <div className="p-8 rounded-full bg-white/10">
                     <RefreshCw size={64} style={{ color: theme.colors.primary }} />
-                  </motion.div>
+                  </div>
                   <div className="text-center text-white">
                     <h2 className="text-4xl font-bold mb-2">Drop to Index</h2>
                     <p className="text-white/60 text-lg">Add these files to your Aurora database</p>
@@ -672,6 +738,7 @@ export default function HomePage() {
             )}
           </AnimatePresence>
         </motion.header>
+
 
         {/* Dashboard Content - Unified Layout */}
         <div className="flex-1 overflow-auto px-6 py-5">
@@ -695,26 +762,10 @@ export default function HomePage() {
                 }}
               />
             ) : loading ? (
-              <motion.div
-                className="flex flex-col items-center justify-center h-full"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.6 }}
-              >
-                <motion.div
-                  className="text-9xl mb-6"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 360],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                >
+              <div className="flex flex-col items-center justify-center h-full">
+                <div className="text-9xl mb-6">
                   <Search size={32} style={{ color: theme.colors.primary }} strokeWidth={2} />
-                </motion.div>
+                </div>
                 <p
                   className="text-2xl font-semibold"
                   style={{
@@ -724,14 +775,9 @@ export default function HomePage() {
                 >
                   Scanning your files...
                 </p>
-              </motion.div>
+              </div>
             ) : fileCount === 0 ? (
-              <motion.div
-                className="text-center py-20 px-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
+              <div className="text-center py-20 px-6">
                 <p
                   className="text-xl font-semibold mb-4"
                   style={{ color: theme.colors.text }}
@@ -764,63 +810,12 @@ export default function HomePage() {
                 >
                   Open Settings
                 </button>
-              </motion.div>
+              </div>
             ) : (
-              <motion.div
-                className="space-y-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-              >
-                {/* Page header */}
-                {selectedValueId && (
-                  <div className="relative">
-                    <div
-                      className="relative w-full rounded-[30px] overflow-hidden px-10 py-10 text-center"
-                      style={{
-                        background: `linear-gradient(135deg, ${activeValueColors?.primary ?? theme.colors.primary}18, ${activeValueColors?.secondary ?? theme.colors.secondary}12)`,
-                        border: `3px solid ${(activeValueColors?.primary ?? theme.colors.primary)}2E`,
-                        boxShadow: theme.effects.shadow,
-                        backdropFilter: theme.effects.blur,
-                      }}
-                    >
-                      <div className="absolute inset-0 pointer-events-none" style={{ background: theme.gradients.glow, opacity: 0.08 }} />
-
-                      {(() => {
-                        const Icon = activeValue ? VALUE_ICON_OPTIONS[activeValue.iconId] : null
-                        const iconColor = activeValueColors?.primary ?? theme.colors.primary
-                        return (
-                          <>
-                            <div className="flex justify-center mb-4">
-                              <div
-                                className="w-20 h-20 rounded-full flex items-center justify-center"
-                                style={{
-                                  background: `radial-gradient(circle, ${iconColor}1F, transparent 70%)`,
-                                  border: `3px solid ${iconColor}55`,
-                                }}
-                              >
-                                {Icon ? <Icon size={44} strokeWidth={2} style={{ color: iconColor }} /> : null}
-                              </div>
-                            </div>
-                            <div
-                              className="text-4xl font-black tracking-tight"
-                              style={{
-                                color: iconColor,
-                                fontFamily: theme.fonts.display,
-                              }}
-                            >
-                              {activeValue?.name ?? 'Core Value'}
-                            </div>
-                          </>
-                        )
-                      })()}
-                    </div>
-                  </div>
-                )}
-
+              <div className="space-y-4">
                 {/* Primary Focus Areas - Unified Card Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* Homebase: Core Values (default) */}
+                  {/* Homebase: Focus Areas (default) */}
                   {!selectedValueId && (
                     <motion.div
                       className="lg:col-span-2"
@@ -828,7 +823,60 @@ export default function HomePage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.1 }}
                     >
-                      <ValuesIntegration coreValues={activeCoreValues} selectedValueId={null} onValueSelect={(value) => selectValue(value.id)} />
+                      <ValuesIntegration
+                        coreValues={activeCoreValues}
+                        selectedValueId={null}
+                        theme={theme}
+                        onValueSelect={(value) => selectValue(value.id)}
+                        onAddFocusArea={(name, iconId, colorPair) => {
+                          const cryptoObj = globalThis.crypto as Crypto | undefined
+                          const id = cryptoObj?.randomUUID?.() ?? `cv_${Date.now()}_${Math.random().toString(16).slice(2)}`
+                          const next = [
+                            ...(settings.coreValues ?? []),
+                            { id, name, iconId, colorPair },
+                          ]
+                          updateSettings({ coreValues: next })
+                        }}
+                        onApplyTemplate={(templateValues, mode) => {
+                          const MAX_ACTIVE = 12
+                          if (mode === 'replace') {
+                            updateSettings({ coreValues: templateValues, archivedValueIds: [] })
+                            return
+                          }
+
+                          const existing = settings.coreValues ?? []
+                          const archived = new Set(settings.archivedValueIds ?? [])
+                          const activeCount = existing.filter((v) => !archived.has(v.id)).length
+                          let slots = MAX_ACTIVE - activeCount
+                          if (slots <= 0) {
+                            window.alert(`You already have ${MAX_ACTIVE} active focus areas. Archive one first, then try adding a template.`)
+                            return
+                          }
+
+                          const existingById = new Map(existing.map((v) => [v.id, v] as const))
+                          const restoreCandidatesInOrder = templateValues
+                            .map((v) => v.id)
+                            .filter((id) => archived.has(id) && existingById.has(id))
+                          const restoreNow = restoreCandidatesInOrder.slice(0, slots)
+                          slots -= restoreNow.length
+
+                          const existingIds = new Set(existing.map((v) => v.id))
+                          const additions = templateValues
+                            .filter((v) => !existingIds.has(v.id))
+                            .slice(0, slots)
+                            .map((v, idx) => ({
+                              ...v,
+                              colorPair: CORE_VALUE_PALETTE[(existing.length + idx) % CORE_VALUE_PALETTE.length],
+                            }))
+
+                          const archivedValueIdsNext = (settings.archivedValueIds ?? []).filter((id) => !restoreNow.includes(id))
+                          updateSettings({
+                            coreValues: [...existing, ...additions],
+                            archivedValueIds: archivedValueIdsNext,
+                          })
+                        }}
+                        onOpenSettings={() => setIsSettingsOpen(true)}
+                      />
                     </motion.div>
                   )}
 
@@ -850,6 +898,8 @@ export default function HomePage() {
                         setIsEditing={setIsEditing}
                         isPickerOpen={isPickerOpen}
                         setIsPickerOpen={setIsPickerOpen}
+                        uiComplexity={uiComplexity}
+                        isBusyTime={isBusyTime}
                       />
                     </motion.div>
                   )}
@@ -872,18 +922,21 @@ export default function HomePage() {
                         setIsEditing={setIsEditing}
                         isPickerOpen={isPickerOpen}
                         setIsPickerOpen={setIsPickerOpen}
+                        recordActivity={() => recordFocusAreaActivity(selectedValueId)}
+                        uiComplexity={uiComplexity}
+                        isBusyTime={isBusyTime}
                       />
                     </motion.div>
                   )}
                 </div>
 
-              </motion.div>
+              </div>
             )}
           </div>
         </div>
       </main>
 
-      {/* Left Sidebar - Core Values (toggleable) */}
+      {/* Left Sidebar - Focus Areas (toggleable) */}
       <aside
         ref={valuePanelRef}
         id="core-values-panel"
@@ -894,7 +947,7 @@ export default function HomePage() {
           borderRight: `2px solid ${theme.components.sidebar.borderColor}`,
           transform: isValuePanelOpen ? 'translateX(0)' : 'translateX(-100%)',
         }}
-        aria-label="Core values"
+        aria-label="Focus areas"
       >
         {/* Sidebar gradient overlay */}
         <div
@@ -947,7 +1000,7 @@ export default function HomePage() {
               <div className="min-w-0">
                 <div className="text-sm font-bold leading-tight">Homebase</div>
                 <div className="text-[11px]" style={{ color: theme.colors.textSecondary }}>
-                  All core values
+                  All focus areas
                 </div>
               </div>
             </button>
@@ -955,7 +1008,7 @@ export default function HomePage() {
             <div className="h-px my-3" style={{ background: theme.colors.border }} />
 
             <div className="text-xs font-semibold mb-2" style={{ color: theme.colors.textSecondary }}>
-              Core Values
+              Focus Areas
             </div>
 
             {activeCoreValues.map((v, idx) => {
@@ -985,9 +1038,6 @@ export default function HomePage() {
                   </span>
                   <div className="min-w-0">
                     <div className="text-sm font-bold leading-tight truncate">{v.name}</div>
-                    <div className="text-[11px] truncate" style={{ color: theme.colors.textSecondary }}>
-                      {v.id}
-                    </div>
                   </div>
                 </button>
               )
@@ -1059,12 +1109,12 @@ export default function HomePage() {
           borderTopRightRadius: 16,
           borderBottomRightRadius: 16,
         }}
-        title={isValuePanelOpen ? 'Hide core values' : 'Show core values'}
-        aria-label={isValuePanelOpen ? 'Hide core values' : 'Show core values'}
+        title={isValuePanelOpen ? 'Hide focus areas' : 'Show focus areas'}
+        aria-label={isValuePanelOpen ? 'Hide focus areas' : 'Show focus areas'}
         aria-controls="core-values-panel"
         aria-expanded={isValuePanelOpen}
       >
-        <span className="sr-only">Toggle core values</span>
+        <span className="sr-only">Toggle focus areas</span>
         <div
           className="mx-auto my-auto"
           style={{
@@ -1152,12 +1202,139 @@ export default function HomePage() {
           resetSettings()
           setThemeMode('system')
         }}
+        onApplyTemplate={(templateValues, mode) => {
+          const MAX_ACTIVE = 12
+          if (mode === 'replace') {
+            updateSettings({ coreValues: templateValues, archivedValueIds: [] })
+            return
+          }
+
+          const existing = settings.coreValues ?? []
+          const archived = new Set(settings.archivedValueIds ?? [])
+          const activeCount = existing.filter((v) => !archived.has(v.id)).length
+          let slots = MAX_ACTIVE - activeCount
+          if (slots <= 0) {
+            window.alert(`You already have ${MAX_ACTIVE} active focus areas. Archive one first, then try adding a template.`)
+            return
+          }
+
+          const existingById = new Map(existing.map((v) => [v.id, v] as const))
+          const restoreCandidatesInOrder = templateValues
+            .map((v) => v.id)
+            .filter((id) => archived.has(id) && existingById.has(id))
+          const restoreNow = restoreCandidatesInOrder.slice(0, slots)
+          slots -= restoreNow.length
+
+          const newValues = templateValues
+            .filter((v) => {
+              if (restoreNow.includes(v.id)) {
+                return false
+              }
+              return !existingById.has(v.id)
+            })
+            .slice(0, slots)
+
+          const nextArchived = new Set(archived)
+          restoreNow.forEach((id) => nextArchived.delete(id))
+
+          const next = existing.map((v) => {
+            if (restoreNow.includes(v.id)) {
+              return { ...v }
+            }
+            return v
+          })
+
+          updateSettings({
+            coreValues: [...next, ...newValues],
+            archivedValueIds: Array.from(nextArchived),
+          })
+        }}
       />
 
       <GlobalSearch
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         theme={theme}
+      />
+
+      {/* Quick Capture - Always accessible */}
+      <QuickCapture
+        theme={theme}
+        currentFocusAreaId={selectedValueId}
+        onCaptureLink={(url) => {
+          // Find or create Links widget for current focus area
+          if (selectedValueId) {
+            const layout = settings.valueLayouts?.[selectedValueId] ?? { widgets: [] }
+            const linksWidget = layout.widgets?.find((w) => w.type === 'links')
+            
+            if (linksWidget) {
+              // Add to existing Links widget
+              const currentData = settings.widgetData?.[linksWidget.id] as { links: Array<{ id: string; url: string; label?: string }> } | undefined
+              const links = currentData?.links ?? []
+              const newLink = {
+                id: globalThis.crypto?.randomUUID?.() ?? `l_${Date.now()}`,
+                url,
+              }
+              updateSettings({
+                widgetData: {
+                  ...settings.widgetData,
+                  [linksWidget.id]: { links: [newLink, ...links] },
+                },
+              })
+            } else {
+              // Create Links widget and add link
+              const widgetId = createWidgetId('links')
+              updateSettings({
+                valueLayouts: {
+                  ...settings.valueLayouts,
+                  [selectedValueId]: {
+                    widgets: [...layout.widgets, { id: widgetId, type: 'links', span: 2 }],
+                  },
+                },
+                widgetData: {
+                  ...settings.widgetData,
+                  [widgetId]: {
+                    links: [{ id: globalThis.crypto?.randomUUID?.() ?? `l_${Date.now()}`, url }],
+                  },
+                },
+              })
+            }
+          }
+        }}
+        onCaptureNote={(text) => {
+          // Add to Brain Dump for current focus area or homebase
+          const targetArea = selectedValueId || '__homebase__'
+          const currentDump = settings.brainDumps?.[targetArea] ?? ''
+          const newText = currentDump ? `${currentDump}\n\n${text}` : text
+          updateSettings({
+            brainDumps: {
+              ...settings.brainDumps,
+              [targetArea]: newText,
+            },
+          })
+        }}
+        onCapturePin={() => {
+          // Open file picker to pin a file
+          if (selectedValueId) {
+            // This would ideally open a file picker
+            // For now, we'll show a message
+            window.alert('File pinning from Quick Capture coming soon! For now, use the file tile\'s pin button.')
+          }
+        }}
+        onCaptureReminder={(text) => {
+          // Add to calendar or create a reminder
+          // For now, add to Brain Dump with a reminder prefix
+          const targetArea = selectedValueId || '__homebase__'
+          const currentDump = settings.brainDumps?.[targetArea] ?? ''
+          const reminderText = `🔔 REMINDER: ${text}`
+          const newText = currentDump ? `${currentDump}\n\n${reminderText}` : reminderText
+          updateSettings({
+            brainDumps: {
+              ...settings.brainDumps,
+              [targetArea]: newText,
+            },
+          })
+        }}
       />
 
     </div>

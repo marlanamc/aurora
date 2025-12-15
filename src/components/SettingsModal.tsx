@@ -10,7 +10,8 @@ import { type ThemePreference } from '@/lib/useThemeMode'
 import { type AuroraSettings } from '@/lib/settings'
 import { open } from '@tauri-apps/plugin-dialog'
 import { VALUE_ICON_OPTIONS, type ValueIconId } from '@/lib/value-icons'
-import { CoreValuesEditor, type CoreValue } from '@/components/settings/CoreValuesEditor'
+import { CoreValuesEditor, type CoreValue, type CoreValueDraft } from '@/components/settings/CoreValuesEditor'
+import { QuickStartSection } from '@/components/settings/QuickStartSection'
 
 const MAX_CORE_VALUES = 12
 
@@ -24,6 +25,7 @@ type Props = {
   setThemePreference: (pref: ThemePreference) => void
   onReset: () => void
   onScanNow?: () => void
+  onApplyTemplate?: (values: import('@/lib/starter-templates').TemplateCoreValue[], mode: 'replace' | 'add') => void
 }
 
 type SettingsTab = 'general' | 'appearance' | 'files' | 'values'
@@ -38,11 +40,12 @@ export function SettingsModal({
   setThemePreference,
   onReset,
   onScanNow,
+  onApplyTemplate,
 }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const panelRef = useRef<HTMLDivElement | null>(null)
 
-  // Memoized values for core values
+  // Memoized values for focus areas
   const archivedIdSet = useMemo(() => new Set(settings.archivedValueIds ?? []), [settings.archivedValueIds])
   const activeValues = useMemo(
     () => (settings.coreValues ?? []).filter((v) => !archivedIdSet.has(v.id)),
@@ -102,7 +105,7 @@ export function SettingsModal({
       window.alert(`You can have up to ${MAX_CORE_VALUES} values. Try removing or renaming one first.`)
       return
     }
-    const name = window.prompt('Name a core value (example: Creativity):')
+    const name = window.prompt('Name a focus area (example: Creativity):')
     if (!name || name.trim().length === 0) return
     const next = [
       ...(settings.coreValues ?? []),
@@ -142,7 +145,7 @@ export function SettingsModal({
     { id: 'general', label: 'General', icon: SettingsIcon },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'files', label: 'Content & Files', icon: Folder },
-    { id: 'values', label: 'Core Values', icon: LayoutGrid }, // Using LayoutGrid for values
+    { id: 'values', label: 'Focus Areas', icon: LayoutGrid },
   ]
 
   return (
@@ -160,7 +163,15 @@ export function SettingsModal({
             type="button"
             aria-label="Close settings"
             className="absolute inset-0 cursor-default"
-            style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(10px)' }}
+            style={{ 
+              background: 'rgba(0,0,0,0.35)', 
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             onClick={(e) => {
               if (e.target === e.currentTarget) onClose()
             }}
@@ -175,11 +186,18 @@ export function SettingsModal({
               color: theme.colors.text,
               boxShadow: theme.effects.shadowHover,
               backdropFilter: theme.effects.blur,
+              willChange: 'transform, opacity',
+              transform: 'translate3d(0, 0, 0)',
             }}
-            initial={{ y: 12, scale: 0.98, opacity: 0 }}
+            initial={{ y: 20, scale: 0.96, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
-            exit={{ y: 12, scale: 0.98, opacity: 0 }}
-            transition={{ duration: 0.18 }}
+            exit={{ y: 20, scale: 0.96, opacity: 0 }}
+            transition={{ 
+              type: 'spring',
+              damping: 30,
+              stiffness: 300,
+              mass: 0.8,
+            }}
           >
             <div
               className="absolute inset-0 opacity-40 pointer-events-none"
@@ -379,23 +397,36 @@ export function SettingsModal({
 
                   {/* VALUES TAB */}
                   {activeTab === 'values' && (
-                    <CoreValuesEditor
-                      activeValues={activeValues}
-                      archivedValues={archivedValues}
-                      theme={theme}
-                      onUpdate={updateCoreValue}
-                      onAdd={(name) => {
-                        const next = [
-                          ...(settings.coreValues ?? []),
-                          { id: createId(), name, iconId: 'sparkles' as ValueIconId },
-                        ]
-                        updateSettings({ coreValues: next })
-                      }}
-                      onArchive={archiveCoreValue}
-                      onRestore={restoreCoreValue}
-                      onRemove={removeCoreValue}
-                      onReorder={(val) => reorderActiveValues(val)}
-                    />
+                    <div className="space-y-8">
+                      {/* Quick Start Section - only show if user has few/no focus areas */}
+                      {activeValues.length <= 2 && onApplyTemplate && (
+                        <QuickStartSection
+                          theme={theme}
+                          currentCount={activeValues.length}
+                          onApplyTemplate={onApplyTemplate}
+                        />
+                      )}
+                      
+                      <CoreValuesEditor
+                        activeValues={activeValues}
+                        archivedValues={archivedValues}
+                        theme={theme}
+                        onUpdate={updateCoreValue}
+                        onAdd={(draft: CoreValueDraft) => {
+                          const id = createId()
+                          const next = [
+                            ...(settings.coreValues ?? []),
+                            { id, ...draft },
+                          ]
+                          updateSettings({ coreValues: next })
+                          return id
+                        }}
+                        onArchive={archiveCoreValue}
+                        onRestore={restoreCoreValue}
+                        onRemove={removeCoreValue}
+                        onReorder={(val) => reorderActiveValues(val)}
+                      />
+                    </div>
                   )}
 
                 </div>

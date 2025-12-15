@@ -6,7 +6,7 @@
 1. **Resurfacing (Remember This)** - ✅ Connected to DB, working well
 2. **Emotional Worlds** - ✅ Real data from file scan
 3. **Relevant Files** - ✅ Real filtering, works great
-4. **Pinned Items** - ✅ Fully functional
+4. **File Spotlight** - ✅ Fully functional
 5. **Brain Dump** - ✅ Persists to localStorage
 6. **Monthly Calendar** - ✅ Works, no external data needed
 7. **Recent Activity** - ✅ Real data from file scan

@@ -87,7 +87,8 @@ export function AffirmationWidget({
     const quotes = valueId && VALUE_QUOTES[valueId] ? VALUE_QUOTES[valueId] : GENERAL_QUOTES
     
     // Get saved quote index or random
-    const savedIndex = widgetId && getWidgetData ? getWidgetData<number>(widgetId, -1) : -1
+    const raw = widgetId && getWidgetData ? getWidgetData<{ quoteIndex: number } | number>(widgetId, { quoteIndex: -1 }) : { quoteIndex: -1 }
+    const savedIndex = typeof raw === 'number' ? raw : typeof raw.quoteIndex === 'number' ? raw.quoteIndex : -1
     const [index, setIndex] = useState(savedIndex >= 0 && savedIndex < quotes.length ? savedIndex : 0)
 
     // Hydration safety since random
@@ -104,7 +105,7 @@ export function AffirmationWidget({
         setIndex(next)
         // Save current quote index
         if (widgetId && mergeWidgetData) {
-            mergeWidgetData(widgetId, { quoteIndex: next }, { quoteIndex: 0 })
+            mergeWidgetData<{ quoteIndex: number }>(widgetId, { quoteIndex: next }, { quoteIndex: 0 })
         }
     }
 
@@ -128,7 +129,7 @@ export function AffirmationWidget({
             />
 
             <div
-                className="flex-1 flex flex-col items-center justify-center p-6 text-center"
+                className="flex flex-col items-center justify-center p-6 text-center min-h-0"
                 onClick={nextQuote}
             >
                 <AnimatePresence mode="wait">

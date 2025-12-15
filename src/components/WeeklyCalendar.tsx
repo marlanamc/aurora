@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { UnifiedCard, UnifiedCardHeader } from '@/components/UnifiedCard'
-import { TrendingUp } from '@/lib/icons'
+import { TrendingUp, X, PenTool } from '@/lib/icons'
 import { appleCalendarListEvents, isTauri, type AppleCalendarEvent } from '@/lib/tauri'
 
 function startOfWeekSunday(date: Date) {
@@ -25,18 +25,12 @@ function isSameDay(a: Date, b: Date) {
 
 export type WeeklyCalendarValue = {
   note: string
-  items: Array<{ id: string; text: string; done: boolean }>
 }
 
 type WeeklyCalendarProps = {
   value: WeeklyCalendarValue
   onChange: (partial: Partial<WeeklyCalendarValue>) => void
   showAppleCalendar?: boolean
-}
-
-function createItemId() {
-  const cryptoObj = globalThis.crypto as Crypto | undefined
-  return cryptoObj?.randomUUID?.() ?? `wk_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
 
 export function WeeklyCalendar({ value, onChange, showAppleCalendar = false }: WeeklyCalendarProps) {
@@ -82,11 +76,78 @@ export function WeeklyCalendar({ value, onChange, showAppleCalendar = false }: W
     return `${startLabel} – ${endLabel}`
   }, [weekStart])
 
-  const [draftItem, setDraftItem] = useState('')
+  const [isEditing, setIsEditing] = useState(!value.note)
+  const [draftNote, setDraftNote] = useState(value.note)
+
+  const handleSet = () => {
+    if (draftNote.trim()) {
+      onChange({ note: draftNote.trim() })
+      setIsEditing(false)
+    }
+  }
+
+  const handleEdit = () => {
+    setDraftNote(value.note)
+    setIsEditing(true)
+  }
+
+  const handleClear = () => {
+    onChange({ note: '' })
+    setDraftNote('')
+    setIsEditing(true)
+  }
+
+  // Color palette for chips
+  const chipColors = [
+    { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', text: '#ffffff' },
+    { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', text: '#ffffff' },
+    // Cyan gradients need dark text in light mode for contrast
+    { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', text: '#0B1220' },
+    { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', text: '#000000' },
+    { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', text: '#000000' },
+    { bg: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', text: '#ffffff' },
+  ]
+  const chipColor = chipColors[weekStart.getDate() % chipColors.length]
 
   return (
-    <UnifiedCard padding="md">
-      <UnifiedCardHeader icon={TrendingUp} title="This Week" subtitle={rangeLabel} />
+    <UnifiedCard padding="sm">
+      <div className="-mb-2">
+        <UnifiedCardHeader icon={TrendingUp} title="This Week" subtitle={rangeLabel} />
+      </div>
+
+      {/* Intention Chip - shown when set */}
+      {!isEditing && value.note && (
+        <div className="mb-3">
+          <div
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full"
+            style={{
+              background: chipColor.bg,
+              color: chipColor.text,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            }}
+          >
+            <span className="text-sm font-semibold flex-1">{value.note}</span>
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="p-1 rounded-lg hover:bg-black/10 transition-colors"
+              style={{ color: chipColor.text }}
+              title="Edit intention"
+            >
+              <PenTool size={14} strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="p-1 rounded-lg hover:bg-black/10 transition-colors"
+              style={{ color: chipColor.text }}
+              title="Clear intention"
+            >
+              <X size={14} strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-7 gap-1">
         {weekday.map((d) => (
@@ -135,108 +196,43 @@ export function WeeklyCalendar({ value, onChange, showAppleCalendar = false }: W
         })}
       </div>
 
-      <div className="mt-4 space-y-3">
-        <div>
-          <div className="text-xs font-semibold mb-1" style={{ color: 'var(--aurora-text-secondary, rgba(17,24,39,0.72))' }}>
-            Intention
+      {/* Input and Set button - shown when editing */}
+      {isEditing && (
+        <div className="mt-3">
+          <div className="flex items-center gap-2">
+            <input
+              value={draftNote}
+              onChange={(e) => setDraftNote(e.target.value)}
+              className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+              style={{
+                background: 'rgba(0,0,0,0.06)',
+                border: '1px solid rgba(255,255,255,0.22)',
+                color: 'var(--aurora-text)',
+              }}
+              placeholder="What would make this week feel supportive?"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSet()
+                }
+              }}
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={handleSet}
+              disabled={!draftNote.trim()}
+              className="px-3 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: 'var(--aurora-primary, #3B82F6)',
+                color: '#ffffff',
+              }}
+            >
+              Set
+            </button>
           </div>
-          <textarea
-            value={value.note}
-            onChange={(e) => onChange({ note: e.target.value })}
-            className="w-full min-h-[80px] rounded-xl px-3 py-2 text-sm outline-none resize-none"
-            style={{
-              background: 'rgba(0,0,0,0.06)',
-              border: '1px solid rgba(255,255,255,0.22)',
-              color: 'var(--aurora-text)',
-            }}
-            placeholder="What would make this week feel supportive?"
-          />
         </div>
-
-        <div>
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="text-xs font-semibold" style={{ color: 'var(--aurora-text-secondary, rgba(17,24,39,0.72))' }}>
-              Tiny list
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                value={draftItem}
-                onChange={(e) => setDraftItem(e.target.value)}
-                className="rounded-xl px-3 py-2 text-sm outline-none"
-                style={{
-                  background: 'rgba(0,0,0,0.06)',
-                  border: '1px solid rgba(255,255,255,0.22)',
-                  color: 'var(--aurora-text)',
-                  width: 200,
-                }}
-                placeholder="Add item…"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const text = draftItem.trim()
-                  if (!text) return
-                  onChange({ items: [...value.items, { id: createItemId(), text, done: false }] })
-                  setDraftItem('')
-                }}
-                className="px-3 py-2 rounded-xl text-sm font-semibold"
-                style={{
-                  background: 'rgba(0,0,0,0.06)',
-                  border: '1px solid rgba(255,255,255,0.22)',
-                  color: 'var(--aurora-text)',
-                }}
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {value.items.length === 0 ? (
-            <div className="text-sm" style={{ color: 'var(--aurora-text-secondary)' }}>
-              Nothing here yet.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {value.items.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2"
-                  style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(255,255,255,0.22)' }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={item.done}
-                    onChange={(e) => {
-                      const next = value.items.map((it) => (it.id === item.id ? { ...it, done: e.target.checked } : it))
-                      onChange({ items: next })
-                    }}
-                    className="h-4 w-4"
-                  />
-                  <div
-                    className="text-sm flex-1"
-                    style={{
-                      color: 'var(--aurora-text)',
-                      textDecoration: item.done ? 'line-through' : 'none',
-                      opacity: item.done ? 0.7 : 1,
-                    }}
-                  >
-                    {item.text}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onChange({ items: value.items.filter((it) => it.id !== item.id) })}
-                    className="text-xs font-semibold px-2 py-1 rounded-lg"
-                    style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(255,255,255,0.22)', color: 'var(--aurora-text)' }}
-                    title="Remove"
-                  >
-                    Remove
-                  </button>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </UnifiedCard>
   )
 }

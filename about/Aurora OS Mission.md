@@ -129,7 +129,7 @@ Aurora incorporates behavioral design tools:
 * **Application Heat Maps**
 * **Daily Quests**
 * **Micro-actions instead of to-do lists**
-* **Core Value Progress Bars**
+* **Focus Area Progress Bars**
 * **Streaks, not shame loops**
 
 This builds *dopaminergic scaffolding*, helping your brain activate without force.

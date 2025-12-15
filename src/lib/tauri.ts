@@ -258,6 +258,18 @@ export async function openFile(path: string): Promise<void> {
 }
 
 /**
+ * Open a URL in the default browser.
+ * In web mode this will fall back to `window.open`.
+ */
+export async function openUrl(url: string): Promise<void> {
+  try {
+    await openPath(url)
+  } catch {
+    if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer')
+  }
+}
+
+/**
  * Reveal a file in Finder
  * @param path - File path to reveal
  */

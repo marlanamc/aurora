@@ -1,18 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { UnifiedCard, UnifiedCardHeader } from '@/components/UnifiedCard'
-import { BookOpen, Plus, X, Folder, Star } from '@/lib/icons'
+import { BookOpen, Plus, X, Star, PenTool, Check } from '@/lib/icons'
 import { type GlobalTheme } from '@/lib/global-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { open } from '@tauri-apps/plugin-dialog'
 import { openFile } from '@/lib/tauri'
+import { HexColorPicker } from 'react-colorful'
 
 type Notebook = {
   id: string
   path: string
   name: string
   color: string
+  favorite?: boolean
   createdAt?: number
 }
 
@@ -70,8 +72,12 @@ export function NotebookWidget({
   const notebooks = notebooksRaw.map((nb) => ({
     ...nb,
     createdAt: nb.createdAt ?? Date.now(),
+    favorite: nb.favorite ?? false,
   }))
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
+  const editInputRef = useRef<HTMLInputElement>(null)
   
   // Also allow opening preset picker by clicking the color button
   const handleColorButtonClick = (e: React.MouseEvent, notebookId: string) => {
@@ -107,11 +113,47 @@ export function NotebookWidget({
     mergeWidgetData<{ notebooks: Notebook[] }>(widgetId, { notebooks: updated }, { notebooks: [] })
   }
 
-  const updateNotebookColor = (id: string, color: string) => {
+  const updateNotebookColor = (id: string, color: string, closePicker = false) => {
     const updated = notebooks.map((nb) => (nb.id === id ? { ...nb, color } : nb))
     mergeWidgetData<{ notebooks: Notebook[] }>(widgetId, { notebooks: updated }, { notebooks: [] })
-    setShowColorPicker(null)
+    if (closePicker) {
+      setShowColorPicker(null)
+    }
   }
+
+  const toggleNotebookFavorite = (id: string) => {
+    const updated = notebooks.map((nb) => (nb.id === id ? { ...nb, favorite: !nb.favorite } : nb))
+    mergeWidgetData<{ notebooks: Notebook[] }>(widgetId, { notebooks: updated }, { notebooks: [] })
+  }
+
+  const startEditing = (id: string, currentName: string) => {
+    setEditingId(id)
+    setEditingName(currentName || '')
+    setShowColorPicker(null) // Close color picker if open
+  }
+
+  const saveEdit = (id: string) => {
+    const trimmed = editingName.trim()
+    if (trimmed) {
+      const updated = notebooks.map((nb) => (nb.id === id ? { ...nb, name: trimmed } : nb))
+      mergeWidgetData<{ notebooks: Notebook[] }>(widgetId, { notebooks: updated }, { notebooks: [] })
+    }
+    setEditingId(null)
+    setEditingName('')
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditingName('')
+  }
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus()
+      editInputRef.current.select()
+    }
+  }, [editingId])
 
   const openNotebook = async (path: string) => {
     try {
@@ -126,24 +168,65 @@ export function NotebookWidget({
       <UnifiedCardHeader
         icon={BookOpen}
         title="Notebooks"
-        subtitle="Your folders, styled like notebooks"
+        subtitle="Your folders, organized visually"
       />
-      <div className="p-4">
+      <div className="p-4 relative">
+        {/* Add button (doesn't consume a grid slot) */}
+        <button
+          onClick={addNotebook}
+          className="absolute top-2 right-2 w-9 h-9 rounded-full border flex items-center justify-center transition-all hover:scale-105 active:scale-95 z-30"
+          style={{
+            background: theme.components.card.background,
+            borderColor: theme.colors.border,
+            color: theme.colors.textSecondary,
+            boxShadow: theme.effects.shadowHover,
+          }}
+          title="Add Notebook"
+        >
+          <Plus size={16} strokeWidth={2.5} />
+        </button>
+
         {notebooks.length === 0 ? (
-          <div className="text-center py-12 text-sm opacity-60" style={{ color: theme.colors.textSecondary }}>
-            No notebooks yet. Add a folder to get started.
+          <div className="text-center py-12">
+            <div className="text-sm opacity-60" style={{ color: theme.colors.textSecondary }}>
+              No notebooks yet. Click + to add a folder.
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-4">
-            <AnimatePresence>
-              {notebooks.map((notebook, index) => (
+          <div
+            className="relative rounded-2xl p-4"
+            style={{
+              backgroundImage: `
+                linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 40%, rgba(90,60,30,0.18) 100%),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 28px)
+              `,
+              border: `1px solid ${theme.colors.border}`,
+              boxShadow: theme.effects.shadowHover,
+            }}
+          >
+            <div
+              className="absolute inset-0 rounded-2xl pointer-events-none"
+              style={{
+                background:
+                  'radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0) 55%), radial-gradient(100% 70% at 50% 100%, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0) 60%)',
+              }}
+            />
+            <div className="relative grid grid-cols-3 gap-4 items-end">
+            <AnimatePresence initial={false}>
+              {notebooks.map((notebook, index) => {
+                const isEditing = editingId === notebook.id
+                return (
                 <motion.div
                   key={notebook.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={false}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: index * 0.05 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.12 }}
                   className="relative group"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('[data-notebook-control]')) return
+                    if (!isEditing) openNotebook(notebook.path)
+                  }}
                 >
                   {/* Notebook Cover - Vertical Portrait Style */}
                   <div
@@ -151,12 +234,6 @@ export function NotebookWidget({
                     style={{
                       background: notebook.color,
                       boxShadow: `0 4px 12px ${notebook.color}40, 0 2px 4px rgba(0,0,0,0.1)`,
-                    }}
-                    onClick={(e) => {
-                      // Only open if clicking on the cover itself, not on buttons
-                      if (e.target === e.currentTarget || !(e.target as HTMLElement).closest('button')) {
-                        openNotebook(notebook.path)
-                      }
                     }}
                   >
                     {/* Spine/Binding - Darker vertical strip on left */}
@@ -169,38 +246,80 @@ export function NotebookWidget({
 
                     {/* Star Icon - Top Right */}
                     <div className="absolute top-2 right-2 z-10">
-                      <Star 
-                        size={16} 
-                        className="opacity-60"
-                        style={{ 
-                          fill: 'rgba(255,255,255,0.3)',
-                          stroke: 'rgba(255,255,255,0.5)',
-                          strokeWidth: 1.5,
+                      <button
+                        type="button"
+                        data-notebook-control
+                        className="p-1.5 rounded-md bg-white/10 hover:bg-white/25 backdrop-blur-sm transition-all hover:scale-110 active:scale-95 shadow-sm"
+                        title={notebook.favorite ? 'Unfavorite' : 'Favorite'}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                          toggleNotebookFavorite(notebook.id)
                         }}
-                      />
+                      >
+                        <Star
+                          size={14}
+                          className="transition-all"
+                          style={{
+                            fill: notebook.favorite ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)',
+                            stroke: 'rgba(255,255,255,0.9)',
+                            strokeWidth: 2,
+                          }}
+                        />
+                      </button>
                     </div>
 
                     {/* Folder Title on Cover */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-3 py-2">
-                      <div
-                        className="text-center break-words"
-                        style={{
-                          fontFamily: 'Georgia, serif',
-                          fontSize: '12px',
-                          fontWeight: 500,
-                          color: 'rgba(0,0,0,0.8)',
-                          textShadow: '0 1px 2px rgba(255,255,255,0.5)',
-                          letterSpacing: '0.3px',
-                          transform: 'rotate(-1deg)',
-                          lineHeight: '1.4',
-                          maxWidth: '100%',
-                          wordWrap: 'break-word',
-                          overflowWrap: 'break-word',
-                          hyphens: 'auto',
-                        }}
-                      >
-                        {notebook.name}
-                      </div>
+                    <div className="absolute inset-0 flex items-center justify-center px-3 py-2">
+                      {isEditing ? (
+                        <input
+                          ref={editInputRef}
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              saveEdit(notebook.id)
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault()
+                              cancelEdit()
+                            }
+                          }}
+                          onBlur={() => saveEdit(notebook.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full text-center bg-white/90 dark:bg-black/90 backdrop-blur-sm rounded-md px-2 py-1 outline-none border-2 focus:border-white/50 transition-all"
+                          style={{
+                            fontFamily: 'Georgia, serif',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: 'rgba(0,0,0,0.9)',
+                            letterSpacing: '0.3px',
+                            transform: 'rotate(-1deg)',
+                            borderColor: 'rgba(255,255,255,0.3)',
+                          }}
+                          placeholder={notebook.name}
+                        />
+                      ) : (
+                        <div
+                          className="text-center break-words pointer-events-none"
+                          style={{
+                            fontFamily: 'Georgia, serif',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: 'rgba(0,0,0,0.8)',
+                            textShadow: '0 1px 2px rgba(255,255,255,0.5)',
+                            letterSpacing: '0.3px',
+                            transform: 'rotate(-1deg)',
+                            lineHeight: '1.4',
+                            maxWidth: '100%',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            hyphens: 'auto',
+                          }}
+                        >
+                          {notebook.name}
+                        </div>
+                      )}
                     </div>
 
                     {/* Subtle Pattern/Watermark */}
@@ -217,160 +336,204 @@ export function NotebookWidget({
                       }}
                     />
 
-                    {/* Color Picker - Native input with preset fallback */}
-                    <div className="absolute bottom-3 right-3 z-20 flex items-center gap-2">
-                      {/* Native Color Picker */}
-                      <label
-                        className="p-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
-                        title="Pick any color"
-                        style={{ pointerEvents: 'auto' }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          e.preventDefault()
-                        }}
-                      >
-                        <input
-                          type="color"
-                          value={notebook.color}
-                          onChange={(e) => {
-                            e.stopPropagation()
-                            updateNotebookColor(notebook.id, e.target.value)
-                          }}
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                          style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}
+                    {/* Edit Button - Appears on hover */}
+                    {!isEditing && (
+                      <div className="absolute bottom-3 left-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
                           onClick={(e) => {
                             e.stopPropagation()
+                            e.preventDefault()
+                            startEditing(notebook.id, notebook.name)
                           }}
-                        />
+                          data-notebook-control
+                          className="p-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all hover:scale-110 active:scale-95"
+                          title="Edit name"
+                          style={{ pointerEvents: 'auto' }}
+                        >
+                          <PenTool size={14} style={{ color: 'rgba(0,0,0,0.7)' }} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Save/Cancel Buttons - When editing */}
+                    {isEditing && (
+                      <div className="absolute bottom-3 left-3 z-20 flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            saveEdit(notebook.id)
+                          }}
+                          data-notebook-control
+                          className="p-2 rounded-lg bg-green-500/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all hover:scale-110 active:scale-95"
+                          title="Save changes"
+                          style={{ pointerEvents: 'auto' }}
+                        >
+                          <Check size={14} className="text-white" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            cancelEdit()
+                          }}
+                          data-notebook-control
+                          className="p-2 rounded-lg bg-red-500/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all hover:scale-110 active:scale-95"
+                          title="Cancel editing"
+                          style={{ pointerEvents: 'auto' }}
+                        >
+                          <X size={14} className="text-white" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Color Picker - Single button that opens color picker popup */}
+                    <div className="absolute bottom-3 right-3 z-20">
+                      <button
+                        onClick={(e) => handleColorButtonClick(e, notebook.id)}
+                        data-notebook-control
+                        className="p-2 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all hover:scale-110 active:scale-95"
+                        title="Change color"
+                        style={{ pointerEvents: 'auto' }}
+                      >
                         <div
-                          className="w-5 h-5 rounded border-2 pointer-events-none"
+                          className="w-5 h-5 rounded border-2 transition-all"
                           style={{
                             background: notebook.color,
                             borderColor: 'rgba(0,0,0,0.2)',
                           }}
                         />
-                      </label>
-                      
-                      {/* Preset Colors Button */}
-                      <button
-                        onClick={(e) => handleColorButtonClick(e, notebook.id)}
-                        className="p-1.5 rounded-lg bg-white/90 dark:bg-black/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all"
-                        title="Choose from presets"
-                        style={{ pointerEvents: 'auto' }}
-                      >
-                        <div className="w-4 h-4 rounded" style={{ 
-                          background: `linear-gradient(45deg, ${NOTEBOOK_COLORS[0]}, ${NOTEBOOK_COLORS[1]}, ${NOTEBOOK_COLORS[2]})`,
-                          border: '1px solid rgba(0,0,0,0.2)',
-                        }} />
                       </button>
                     </div>
 
-                    {/* Remove Button - Always visible but subtle */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        e.preventDefault()
-                        removeNotebook(notebook.id)
-                      }}
-                      className="absolute top-2 left-2 p-1 rounded-md bg-red-500/80 backdrop-blur-sm opacity-60 hover:opacity-100 transition-opacity z-20 pointer-events-auto"
-                      title="Remove notebook"
-                      style={{ pointerEvents: 'auto' }}
-                    >
-                      <X size={12} className="text-white" />
-                    </button>
+                    {/* Remove Button - Appears on hover */}
+                    <div className="absolute top-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                          removeNotebook(notebook.id)
+                        }}
+                        data-notebook-control
+                        className="p-2 rounded-md bg-red-500/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all hover:scale-110 active:scale-95 pointer-events-auto"
+                        title="Remove notebook"
+                        style={{ pointerEvents: 'auto' }}
+                      >
+                        <X size={12} className="text-white" />
+                      </button>
+                    </div>
 
-                    {/* Preset Color Picker Dropdown - Alternative option */}
-                    {showColorPicker === notebook.id && (
-                      <>
-                        {/* Backdrop to close on outside click */}
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setShowColorPicker(null)
-                          }}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          className="absolute bottom-full right-0 mb-3 p-3 rounded-xl z-50 shadow-2xl"
-                          style={{
-                            background: theme.components.card.background,
-                            border: `2px solid ${theme.colors.border}`,
-                            boxShadow: theme.effects.shadowHover,
-                            pointerEvents: 'auto',
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            e.preventDefault()
-                          }}
-                        >
-                          <div className="text-xs font-semibold mb-2 opacity-70" style={{ color: theme.colors.textSecondary }}>
+                  </div>
+
+                  {/* Shelf plank under each book */}
+                  <div
+                    className="mt-2 h-3 w-full rounded-sm"
+                    style={{
+                      background:
+                        'linear-gradient(180deg, rgba(110,75,40,0.55) 0%, rgba(85,55,28,0.65) 55%, rgba(60,38,18,0.75) 100%)',
+                      boxShadow:
+                        'inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 14px rgba(0,0,0,0.22)',
+                      border: '1px solid rgba(0,0,0,0.15)',
+                    }}
+                  />
+
+                  {/* Color Picker Popup - placed outside cover to avoid overflow clipping */}
+                  {showColorPicker === notebook.id && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowColorPicker(null)
+                        }}
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        className="absolute bottom-14 right-3 p-3 rounded-xl z-50 shadow-2xl"
+                        data-notebook-control
+                        style={{
+                          background: theme.components.card.background,
+                          border: `2px solid ${theme.colors.border}`,
+                          boxShadow: theme.effects.shadowHover,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                        }}
+                      >
+                        <div className="mb-3">
+                          <div
+                            className="text-xs font-semibold mb-2 opacity-70"
+                            style={{ color: theme.colors.textSecondary }}
+                          >
+                            Pick any color:
+                          </div>
+                          <div
+                            className="rounded-lg overflow-hidden border-2"
+                            style={{ borderColor: theme.colors.border }}
+                          >
+                            <HexColorPicker
+                              color={notebook.color}
+                              onChange={(color) => updateNotebookColor(notebook.id, color, false)}
+                              style={{ width: '100%', height: '150px' }}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <div
+                            className="text-xs font-semibold mb-2 opacity-70"
+                            style={{ color: theme.colors.textSecondary }}
+                          >
                             Or choose a preset:
                           </div>
                           <div className="grid grid-cols-5 gap-3">
                             {NOTEBOOK_COLORS.map((color) => (
                               <button
                                 key={color}
+                                type="button"
+                                data-notebook-control
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   e.preventDefault()
-                                  updateNotebookColor(notebook.id, color)
-                                  setShowColorPicker(null)
+                                  updateNotebookColor(notebook.id, color, true)
                                 }}
                                 className="w-8 h-8 rounded-lg border-2 transition-all hover:scale-125 active:scale-110 cursor-pointer shadow-sm"
                                 style={{
                                   background: color,
-                                  borderColor: notebook.color === color ? theme.colors.primary : 'rgba(0,0,0,0.1)',
+                                  borderColor:
+                                    notebook.color === color ? theme.colors.primary : 'rgba(0,0,0,0.1)',
                                   borderWidth: notebook.color === color ? '3px' : '2px',
-                                  pointerEvents: 'auto',
                                 }}
                                 title={color}
                               />
                             ))}
                           </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </div>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
 
                   {/* Label Below Notebook - Just show date if available */}
                   {formatDate(notebook.createdAt) && (
                     <div className="mt-2 text-center">
                       <div
-                        className="text-xs opacity-60"
+                        className="text-xs opacity-60 transition-opacity group-hover:opacity-80"
                         style={{ color: theme.colors.textSecondary }}
                       >
                         {formatDate(notebook.createdAt)}
                       </div>
                     </div>
                   )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-
-            {/* Add New Notebook Button - Small plus icon */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: notebooks.length * 0.05 }}
-              className="relative group flex items-end justify-center"
-            >
-              <button
-                onClick={addNotebook}
-                className="w-12 h-12 rounded-full border-2 border-dashed transition-all hover:border-solid hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center mb-2"
-                style={{
-                  borderColor: theme.colors.textSecondary,
-                  color: theme.colors.textSecondary,
-                }}
-                title="Add Notebook"
-              >
-                <Plus size={20} strokeWidth={2} />
-              </button>
-            </motion.div>
+                  </motion.div>
+                )
+              })}
+              </AnimatePresence>
+            </div>
           </div>
         )}
+        
       </div>
     </UnifiedCard>
   )

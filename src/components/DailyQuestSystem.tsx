@@ -230,10 +230,10 @@ export function DailyQuestSystem({ onUpdate, quests: initialQuests }: DailyQuest
                   onClick={() => handleQuestClick(quest)}
                   whileHover={quest.completed ? {} : { scale: 1.02, y: -2 }}
                   whileTap={quest.completed ? {} : { scale: 0.98 }}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ delay: index * 0.05 }}
+                  initial={false}
+                  animate={false}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
                 >
                   {/* Delete Button (visible on hover) */}
                   <button

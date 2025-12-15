@@ -50,7 +50,7 @@ export function QuickAccessPanel({ files, pinnedItems = [], onOpenFile }: QuickA
       .slice(0, 5)
   }, [files])
 
-  // Get pinned files
+  // Get spotlighted files
   const pinnedFiles = useMemo(() => {
     if (!pinnedItems.length) return []
     
@@ -95,13 +95,13 @@ export function QuickAccessPanel({ files, pinnedItems = [], onOpenFile }: QuickA
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 space-y-6">
-        {/* Pinned Items */}
+        {/* Spotlight */}
         {pinnedFiles.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Star size={14} className="opacity-60" style={{ color: 'var(--aurora-text-secondary, #6B7280)' }} />
               <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--aurora-text-secondary, #6B7280)' }}>
-                Pinned
+                Spotlight
               </h3>
             </div>
             <div className="space-y-1">
@@ -173,10 +173,11 @@ export function QuickAccessPanel({ files, pinnedItems = [], onOpenFile }: QuickA
           <div className="text-center py-12 text-sm" style={{ color: 'var(--aurora-text-secondary, #9CA3AF)' }}>
             <Folder size={32} className="mx-auto mb-3 opacity-40" />
             <p className="font-medium mb-1">No quick access items</p>
-            <p className="text-xs opacity-70">Pin files or open them frequently to see them here</p>
+            <p className="text-xs opacity-70">Spotlight files or open them frequently to see them here</p>
           </div>
         )}
       </div>
     </div>
   )
 }
+

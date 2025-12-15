@@ -53,7 +53,7 @@ This document outlines what has been prepared to make Aurora OS ready for shippi
 - **Defaults**:
   - Display Name: "Aurora User" (generic, user-friendly)
   - Theme: "spring-bloom" (pleasant default)
-  - Core Values: 7 pre-configured values
+  - Focus Areas: starts empty; user picks a starter template
   - All settings have sensible defaults
   - Graceful fallbacks for corrupted settings
 
@@ -109,7 +109,7 @@ This document outlines what has been prepared to make Aurora OS ready for shippi
 - [x] Sensible default settings
 - [x] Database initializes correctly
 - [x] Default clusters created
-- [x] Default core values configured
+- [x] Focus area templates available
 
 ### Documentation
 - [x] User guide created

@@ -16,6 +16,25 @@ const nextConfig = {
   // During development, we'll use Next.js dev server
   // In production build, Tauri will serve the 'out' directory
   distDir: 'out',
+
+  // Reduce build output verbosity
+  logging: {
+    fetches: {
+      fullUrl: false,
+    },
+  },
+
+  // Suppress webpack warnings during build
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.ignoreWarnings = [
+        { module: /node_modules/ },
+        { message: /Failed to parse source map/ },
+        { message: /Unable to snapshot resolve dependencies/ },
+      ]
+    }
+    return config
+  },
 }
 
 module.exports = nextConfig

@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import type { FileInfo } from '@/lib/tauri'
-import { formatDate, openFile } from '@/lib/tauri'
+import { formatDate, openFile, getFileIcon } from '@/lib/tauri'
 import type { GlobalTheme } from '@/lib/global-themes'
 import type { AuroraSettings } from '@/lib/settings'
 import { UnifiedCard, UnifiedCardHeader } from '@/components/UnifiedCard'
@@ -22,6 +23,8 @@ import { QuickSearchWidget } from '@/components/widgets/QuickSearchWidget'
 import { FileTypeBreakdownWidget } from '@/components/widgets/FileTypeBreakdownWidget'
 import { EnergyTrackerWidget } from '@/components/widgets/EnergyTrackerWidget'
 import { NotebookWidget } from '@/components/widgets/NotebookWidget'
+import { LinksWidget } from '@/components/widgets/LinksWidget'
+import { TitleWidget } from '@/components/widgets/TitleWidget'
 import { filterFilesForValue, getValueTemplate } from '@/lib/value-templates'
 import {
   buildDefaultLayout,
@@ -32,9 +35,14 @@ import {
   type WidgetInstance,
   type WidgetType,
 } from '@/lib/widgets'
+import type { WidgetSuggestion } from '@/lib/smart-defaults'
 import { WidgetGallery } from './WidgetGallery'
-import { Reorder, useDragControls, type DragControls } from 'framer-motion'
-import { LayoutGrid, Plus, X, FileText, Scroll, Sparkles, GripVertical, Clock } from '@/lib/icons'
+import { WidgetSuggestions } from './WidgetSuggestions'
+import { EmptyFocusAreaState } from './EmptyFocusAreaState'
+import { FlippableWidget } from './FlippableWidget'
+import { DraggableWidgetGrid } from './DraggableWidgetGrid'
+import { Plus, X, FileText, Scroll, Sparkles, GripVertical, Clock } from '@/lib/icons'
+import { HeatMapSettingsPanel } from './JobApplicationHeatMap'
 import { dbGetResurfacedFiles, dbSearchFiles, type ResurfacedFile } from '@/lib/tauri'
 import { open } from '@tauri-apps/plugin-dialog'
 
@@ -48,6 +56,9 @@ type Props = {
   setIsEditing: (v: boolean) => void
   isPickerOpen: boolean
   setIsPickerOpen: (v: boolean) => void
+  recordActivity?: () => void
+  uiComplexity?: 'simple' | 'normal' | 'detailed'
+  isBusyTime?: boolean
 }
 
 const EMPTY_WIDGETS: WidgetInstance[] = []
@@ -60,40 +71,78 @@ function setLayout(settings: AuroraSettings, valueId: string, widgets: WidgetIns
   }
 }
 
-export function ValueDashboard({ valueId, files, theme, settings, updateSettings, isEditing, setIsEditing, isPickerOpen, setIsPickerOpen }: Props) {
+export function ValueDashboard({ valueId, files, theme, settings, updateSettings, isEditing, setIsEditing, isPickerOpen, setIsPickerOpen, recordActivity, uiComplexity = 'normal', isBusyTime = false }: Props) {
   const layout = settings.valueLayouts[valueId] ?? null
+  const areaName = useMemo(() => {
+    if (valueId === '__homebase__') return 'Homebase'
+    return settings.coreValues?.find((v) => v.id === valueId)?.name ?? valueId
+  }, [valueId, settings.coreValues])
+  
   const fallbackLayoutRef = useRef<Record<string, { widgets: WidgetInstance[] }>>({})
   const fallbackLayout = useMemo(() => {
     if (!valueId) return null
+    // Homebase should never use fallbackLayout - always empty
+    if (valueId === '__homebase__') return { widgets: [] }
     if (!fallbackLayoutRef.current[valueId]) {
-      fallbackLayoutRef.current[valueId] = buildDefaultLayout(valueId)
+      fallbackLayoutRef.current[valueId] = buildDefaultLayout(valueId, areaName)
     }
     return fallbackLayoutRef.current[valueId]
-  }, [valueId])
+  }, [valueId, areaName])
 
+  // Initialize empty layout if none exists (but don't auto-create widgets)
   useEffect(() => {
     if (!valueId) return
+    
+    // Homebase always starts empty - force clear any existing widgets
+    if (valueId === '__homebase__') {
+      const currentWidgets = layout?.widgets ?? []
+      // Always ensure homebase is empty, even if widgets exist
+      if (currentWidgets.length > 0) {
+        updateSettings({ valueLayouts: { ...settings.valueLayouts, [valueId]: { widgets: [] } } })
+      } else if (!layout) {
+        // Initialize with empty layout if none exists
+        updateSettings({ valueLayouts: { ...settings.valueLayouts, [valueId]: { widgets: [] } } })
+      }
+      return
+    }
+    
     if (layout) return
-    updateSettings({ valueLayouts: { ...settings.valueLayouts, [valueId]: fallbackLayout ?? buildDefaultLayout(valueId) } })
+    
+    // Only add pinned-items widget if user has pinned files (for focus areas only)
+    const pinnedCount = settings.pinnedByValue?.[valueId]?.length ?? 0
+    if (pinnedCount > 0) {
+      const def = WIDGET_DEFINITIONS.find((w) => w.type === 'pinned-items')
+      if (def) {
+        updateSettings({ valueLayouts: { ...settings.valueLayouts, [valueId]: { widgets: [{ id: createWidgetId(def.type), type: def.type, span: def.defaultSpan }] } } })
+      }
+    } else {
+      // Initialize with empty layout
+      updateSettings({ valueLayouts: { ...settings.valueLayouts, [valueId]: { widgets: [] } } })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valueId])
+  }, [valueId, layout?.widgets?.length])
 
   useEffect(() => {
     if (!valueId || valueId === '__homebase__') return
+    const pinnedCount = settings.pinnedByValue?.[valueId]?.length ?? 0
+    if (pinnedCount === 0) return
     const existing = settings.valueLayouts[valueId]?.widgets
-    if (!existing || existing.length === 0) return
+    if (!existing) return
     if (existing.some((w) => w.type === 'pinned-items')) return
     const def = WIDGET_DEFINITIONS.find((w) => w.type === 'pinned-items')
     if (!def) return
     const next = [...existing, { id: createWidgetId(def.type), type: def.type, span: def.defaultSpan }]
     updateSettings({ valueLayouts: setLayout(settings, valueId, next) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valueId])
+  }, [valueId, settings.pinnedByValue?.[valueId]?.length])
 
-  const widgets = useMemo(
-    () => layout?.widgets ?? fallbackLayout?.widgets ?? EMPTY_WIDGETS,
-    [layout?.widgets, fallbackLayout?.widgets]
-  )
+  const widgets = useMemo(() => {
+    // Homebase should always start empty - don't use fallbackLayout
+    if (valueId === '__homebase__' && !layout) {
+      return EMPTY_WIDGETS
+    }
+    return layout?.widgets ?? fallbackLayout?.widgets ?? EMPTY_WIDGETS
+  }, [layout, fallbackLayout?.widgets, valueId])
 
   const availableWidgetDefs = useMemo(() => WIDGET_DEFINITIONS, [])
 
@@ -109,7 +158,19 @@ export function ValueDashboard({ valueId, files, theme, settings, updateSettings
     const def = availableWidgetDefs.find((w) => w.type === type)
     if (!def) return
 
-    const next = [...widgets, { id: createWidgetId(type), type, span: def.defaultSpan }]
+    // Create new widget with default layout props
+    const next = [...widgets, {
+      id: createWidgetId(type),
+      type,
+      span: def.defaultSpan,
+      layout: {
+        x: 0,
+        y: Infinity, // put at bottom
+        w: def.defaultSpan,
+        h: 4 // default height units
+      }
+    }]
+    
     if (type === 'remember-this' && !settings.showRememberThis) {
       updateSettings({ showRememberThis: true, valueLayouts: setLayout(settings, valueId, next) })
     } else {
@@ -128,18 +189,28 @@ export function ValueDashboard({ valueId, files, theme, settings, updateSettings
       if (w.id !== id) return w
       const current = w.span ?? 1
       const span: 1 | 2 = current === 2 ? 1 : 2
-      return { ...w, span }
+      // Update layout width too
+      const currentW = w.layout?.w ?? span
+      const nextW = currentW >= 2 ? 1 : 2
+
+      return {
+        ...w,
+        span,
+        layout: w.layout ? { ...w.layout, w: nextW } : undefined
+      }
     })
     updateSettings({ valueLayouts: setLayout(settings, valueId, next) })
   }
 
-  const reorderWidgets = (next: WidgetInstance[]) => {
-    if (!isEditing) return
+
+  const updateLayout = (next: WidgetInstance[]) => {
+    // This is called by the grid when layout changes (drag/resize)
     updateSettings({ valueLayouts: setLayout(settings, valueId, next) })
   }
 
   const updateBrainDump = (nextText: string) => {
     updateSettings({ brainDumps: { ...settings.brainDumps, [valueId]: nextText } })
+    recordActivity?.()
   }
 
   const getWidgetData = <T,>(widgetId: string, fallback: T): T => {
@@ -163,15 +234,87 @@ export function ValueDashboard({ valueId, files, theme, settings, updateSettings
 
 
 
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set())
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Get suggested widgets for empty state
+  const suggestedWidgets = useMemo(() => {
+    if (widgets.length > 0 || valueId === '__homebase__') return []
+    try {
+      const { suggestWidgetsForFocusArea } = require('@/lib/smart-defaults')
+      const suggestions: WidgetSuggestion[] = suggestWidgetsForFocusArea(areaName, valueId)
+      return suggestions.slice(0, 3).map((s: WidgetSuggestion) => s.type)
+    } catch {
+      return []
+    }
+  }, [areaName, valueId, widgets.length])
+  
+  const showSuggestions = 
+    mounted &&
+    !isEditing &&
+    widgets.length <= 2 &&
+    valueId !== '__homebase__' &&
+    !dismissedSuggestions.has(valueId)
+
+  // Show empty state if no widgets (except for homebase)
+  if (widgets.length === 0 && valueId !== '__homebase__') {
+    return (
+      <div className="space-y-4 pb-24">
+        <EmptyFocusAreaState
+          theme={theme}
+          areaName={areaName}
+          onAddWidget={() => {
+            setIsEditing(true)
+            setIsPickerOpen(true)
+          }}
+          onAddSpecificWidget={(type) => {
+            addWidget(type)
+            setIsEditing(false)
+          }}
+          suggestedWidgets={suggestedWidgets}
+        />
+        <WidgetGallery
+          isOpen={isPickerOpen}
+          onClose={() => {
+            setIsPickerOpen(false)
+            setIsEditing(false)
+          }}
+          onAdd={(type) => {
+            addWidget(type)
+            setIsEditing(false)
+          }}
+          theme={theme}
+          settings={settings}
+          presentTypes={presentTypes}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4 pb-24">
-      <Reorder.Group
-        as="div"
-        values={widgets}
-        onReorder={reorderWidgets}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-4"
-      >
-        {widgets.map((widget) => (
+      {/* Smart Widget Suggestions */}
+      {showSuggestions && (
+        <WidgetSuggestions
+          theme={theme}
+          areaName={areaName}
+          areaId={valueId}
+          currentWidgets={widgets.map((w) => w.type)}
+          onAddWidget={addWidget}
+          onDismiss={() => setDismissedSuggestions((prev) => new Set([...prev, valueId]))}
+        />
+      )}
+
+      <DraggableWidgetGrid
+        widgets={widgets}
+        onLayoutChange={updateLayout}
+        isEditing={isEditing}
+        theme={theme}
+        renderWidget={(widget) => (
           <WidgetItem
             key={widget.id}
             widget={widget}
@@ -189,11 +332,12 @@ export function ValueDashboard({ valueId, files, theme, settings, updateSettings
             mergeWidgetData={mergeWidgetData}
             updateSettings={updateSettings}
           />
-        ))}
-      </Reorder.Group>
+        )}
+      />
 
-      {/* Pinned controls */}
-      <div className="fixed bottom-6 right-6 z-50 pointer-events-none">
+
+      {/* Widget controls - positioned to the left of Quick Capture button */}
+      <div className="fixed bottom-6 right-24 z-50 pointer-events-none">
         <div className="pointer-events-auto flex items-center gap-2">
           {isEditing && (
             <button
@@ -268,22 +412,14 @@ function WidgetItem({
   mergeWidgetData: <T extends Record<string, unknown>>(widgetId: string, partial: Partial<T>, fallback: T) => void
   updateSettings: (partial: Partial<AuroraSettings>) => void
 }) {
-  const controls = useDragControls()
-
   return (
-    <Reorder.Item
-      value={widget}
-      as="div"
-      className={widget.span === 2 ? 'lg:col-span-2' : 'lg:col-span-1'}
-      dragListener={false}
-      dragControls={controls}
-    >
       <WidgetShell
-        dragControls={controls}
+        widget={widget}
         onRemove={onRemove}
         onToggleSpan={onToggleSpan}
         span={widget.span ?? 1}
         isEditing={isEditing}
+        theme={theme}
         render={() =>
           renderWidget({
             widget,
@@ -300,65 +436,43 @@ function WidgetItem({
           })
         }
       />
-    </Reorder.Item>
   )
 }
 
 function WidgetShell({
+  widget,
   render,
   onRemove,
   onToggleSpan,
   span,
-  dragControls,
   isEditing,
+  theme,
 }: {
+  widget: WidgetInstance
   render: () => JSX.Element | null
   onRemove: () => void
   onToggleSpan: () => void
   span: 1 | 2
-  dragControls: DragControls
   isEditing: boolean
+  theme: GlobalTheme
 }) {
   const content = render()
   if (!content) return null
 
+  // Check if content is a FlippableWidget (it will handle its own editing controls)
+  const isFlippable = content && typeof content === 'object' && 'type' in content && (content as any).type === FlippableWidget
+
   return (
-    <div className="relative">
-      {isEditing && (
+    <div className="relative h-full w-full">
+      {isEditing && !isFlippable && (
         <>
           <button
             type="button"
-            onPointerDown={(e) => dragControls.start(e)}
-            className="absolute left-3 top-3 z-20 p-2 rounded-xl cursor-grab active:cursor-grabbing"
-            style={{
-              background: 'rgba(0,0,0,0.12)',
-              border: '1px solid rgba(255,255,255,0.25)',
-              backdropFilter: 'blur(8px)',
+            className="absolute right-2 top-2 z-40 p-2 rounded-xl"
+            onClick={(e) => {
+              e.stopPropagation()
+              onRemove()
             }}
-            title="Drag to reorder"
-            aria-label="Drag to reorder"
-          >
-            <GripVertical size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={onToggleSpan}
-            className="absolute left-12 top-3 z-20 px-2.5 py-2 rounded-xl text-xs font-semibold"
-            style={{
-              background: 'rgba(0,0,0,0.12)',
-              border: '1px solid rgba(255,255,255,0.25)',
-              backdropFilter: 'blur(8px)',
-              color: 'var(--aurora-text, #111827)',
-            }}
-            title={span === 2 ? 'Set narrow' : 'Set wide'}
-            aria-label={span === 2 ? 'Set narrow' : 'Set wide'}
-          >
-            {span === 2 ? 'Narrow' : 'Wide'}
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            className="absolute right-3 top-3 z-20 p-2 rounded-xl"
             style={{
               background: 'rgba(0,0,0,0.12)',
               border: '1px solid rgba(255,255,255,0.25)',
@@ -374,6 +488,7 @@ function WidgetShell({
     </div>
   )
 }
+
 
 function renderWidget({
   widget,
@@ -436,6 +551,7 @@ function renderWidget({
         <RelevantFilesWidget
           files={files}
           valueId={valueId}
+          searchQuery={(settings.coreValues ?? []).find((v) => v.id === valueId)?.searchQuery}
           pinned={settings.pinnedByValue?.[valueId] ?? []}
           onPin={(path) => {
             const current = settings.pinnedByValue?.[valueId] ?? []
@@ -453,6 +569,8 @@ function renderWidget({
           }}
         />
       )
+    case 'links':
+      return <LinksWidget widgetId={widget.id} theme={theme} getWidgetData={getWidgetData} mergeWidgetData={mergeWidgetData} />
     case 'recent-activity':
       return <RecentActivityWidget files={files} />
     case 'pinned-items':
@@ -488,7 +606,14 @@ function renderWidget({
     case 'pomodoro':
       return <PomodoroWidget theme={theme} />
     case 'scratchpad':
-      return <ScratchpadWidget widgetId={widget.id} theme={theme} />
+      return (
+        <ScratchpadWidget 
+          widgetId={widget.id} 
+          theme={theme}
+          getWidgetData={getWidgetData}
+          mergeWidgetData={mergeWidgetData}
+        />
+      )
     case 'apple-calendar':
       return (
         <AppleCalendarWidget
@@ -528,6 +653,17 @@ function renderWidget({
           mergeWidgetData={mergeWidgetData}
         />
       )
+    case 'title':
+      return (
+        <TitleWidget
+          widgetId={widget.id}
+          valueId={valueId}
+          settings={settings}
+          theme={theme}
+          getWidgetData={getWidgetData}
+          mergeWidgetData={mergeWidgetData}
+        />
+      )
     default:
       return null
   }
@@ -552,37 +688,66 @@ function addDays(date: Date, days: number) {
 
 function buildHeatMapDays(data: HeatMapLogData) {
   const today = new Date()
-  const start = addDays(today, -89)
+  const todayKey = toDayKey(today)
+  
+  // Find the first day with activity - start from there, not before
+  const allDayKeys = Object.keys(data.byDay ?? {}).filter((key) => (data.byDay[key] ?? 0) > 0)
+  const firstActivityKey = allDayKeys.length > 0 ? allDayKeys.sort()[0] : null
+  
+  // If no activity yet, show empty state (handled in component)
+  if (!firstActivityKey) {
+    return { days: [], todayCount: data.byDay[todayKey] ?? 0 }
+  }
 
+  // Parse first activity date
+  const [year, month, day] = firstActivityKey.split('-').map(Number)
+  const firstActivityDate = new Date(year, month - 1, day)
+  
+  // Calculate days from first activity to today
+  const daysSinceFirst = Math.floor((today.getTime() - firstActivityDate.getTime()) / (1000 * 60 * 60 * 24))
+  
+  // If more than 14 days have passed, show the last 14 days (sliding window)
+  // Otherwise, show from first activity date - no empty days before you started
+  const actualStart = daysSinceFirst >= 14 ? addDays(today, -13) : firstActivityDate
+  const daysToShow = Math.min(daysSinceFirst + 1, 14) // +1 to include today, max 14 days
+  
   const days: Array<{ date: Date; count: number; urgency: 'safe' | 'slipping' | 'concerning' | 'meltdown' }> = []
   let lastActiveKey: string | null = null
-  for (let i = 0; i < 90; i++) {
-    const date = addDays(start, i)
+  
+  for (let i = 0; i < daysToShow; i++) {
+    const date = addDays(actualStart, i)
+    // Don't show future dates
+    if (date > today) break
+    
     const key = toDayKey(date)
     const count = data.byDay[key] ?? 0
     if (count > 0) lastActiveKey = key
     days.push({ date, count, urgency: 'safe' })
   }
 
-  const lastActiveIndex = lastActiveKey ? days.findIndex((d) => toDayKey(d.date) === lastActiveKey) : -1
-  const daysSinceActive = lastActiveIndex >= 0 ? days.length - 1 - lastActiveIndex : 999
+  // Only calculate urgency if there's been some activity - don't shame empty states
+  const hasAnyActivity = days.some((d) => d.count > 0)
+  if (hasAnyActivity) {
+    const lastActiveIndex = lastActiveKey ? days.findIndex((d) => toDayKey(d.date) === lastActiveKey) : -1
+    const daysSinceActive = lastActiveIndex >= 0 ? days.length - 1 - lastActiveIndex : 999
 
-  for (let i = 0; i < days.length; i++) {
-    const daysSince = days[i].count > 0 ? 0 : Math.max(0, daysSinceActive - (days.length - 1 - i))
-    let urgency: (typeof days)[number]['urgency'] = 'safe'
-    if (daysSince > 7) urgency = 'meltdown'
-    else if (daysSince > 4) urgency = 'concerning'
-    else if (daysSince > 2) urgency = 'slipping'
-    days[i].urgency = urgency
+    for (let i = 0; i < days.length; i++) {
+      const daysSince = days[i].count > 0 ? 0 : Math.max(0, daysSinceActive - (days.length - 1 - i))
+      let urgency: (typeof days)[number]['urgency'] = 'safe'
+      // Softer thresholds - less judgmental
+      if (daysSince > 5) urgency = 'meltdown'
+      else if (daysSince > 3) urgency = 'concerning'
+      else if (daysSince > 1) urgency = 'slipping'
+      days[i].urgency = urgency
+    }
   }
 
-  const todayKey = toDayKey(today)
   return { days, todayCount: data.byDay[todayKey] ?? 0 }
 }
 
 type HeatMapConfig = {
-  label: string // e.g., "Applied", "Exercised", "Worked"
-  goalPerWeek?: number // Optional goal (e.g., 3x per week)
+  label: string // e.g., "Job apps", "Exercises", "Worked"
+  goalPerDay?: number // Optional daily goal (e.g., 5 jobs apps per day)
 }
 
 function HeatMapWidget({
@@ -607,21 +772,79 @@ function HeatMapWidget({
     mergeWidgetData<HeatMapLogData>(widgetId, { byDay: next }, { byDay: {} })
   }
 
-  return (
+  const decrementToday = () => {
+    const key = toDayKey(new Date())
+    const next = { ...(data.byDay ?? {}) }
+    const current = next[key] ?? 0
+    if (current > 0) {
+      next[key] = current - 1
+      // Remove the key if it goes to 0 to keep data clean
+      if (next[key] === 0) {
+        delete next[key]
+      }
+      mergeWidgetData<HeatMapLogData>(widgetId, { byDay: next }, { byDay: {} })
+    }
+  }
+
+  const resetAll = () => {
+    mergeWidgetData<HeatMapLogData>(widgetId, { byDay: {} }, { byDay: {} })
+  }
+
+  const [settingsLabel, setSettingsLabel] = useState(config.label)
+  const [settingsGoal, setSettingsGoal] = useState(config.goalPerDay?.toString() || '')
+
+  useEffect(() => {
+    setSettingsLabel(config.label)
+    setSettingsGoal(config.goalPerDay?.toString() || '')
+  }, [config.label, config.goalPerDay])
+
+  const handleSaveSettings = () => {
+    const goalValue = settingsGoal.trim()
+    const parsedGoal = goalValue ? parseInt(goalValue, 10) : undefined
+    mergeWidgetData<HeatMapConfig>(widgetId, {
+      label: settingsLabel.trim() || 'Action',
+      goalPerDay: parsedGoal && !isNaN(parsedGoal) ? parsedGoal : undefined,
+    }, { label: 'Action' })
+  }
+
+  const front = (
     <JobApplicationHeatMap
+      widgetId={widgetId}
       theme={theme}
       days={days}
       onAddAction={incrementToday}
+      onRemoveAction={decrementToday}
+      onReset={resetAll}
       todayCount={todayCount}
       actionLabel={config.label}
-      goalPerWeek={config.goalPerWeek}
+      goalPerDay={config.goalPerDay}
+    />
+  )
+
+  const back = (
+    <HeatMapSettingsPanel
+      theme={theme}
+      settingsLabel={settingsLabel}
+      setSettingsLabel={setSettingsLabel}
+      settingsGoal={settingsGoal}
+      setSettingsGoal={setSettingsGoal}
+      onSave={handleSaveSettings}
+    />
+  )
+
+  // Get isEditing from parent context - for now, we'll pass it through props
+  // This will be handled by WidgetShell
+  return (
+    <FlippableWidget
+      front={front}
+      back={back}
+      theme={theme}
     />
   )
 }
 
 type WeeklyData = {
   note: string
-  items: Array<{ id: string; text: string; done: boolean }>
 }
 
 function WeeklyCalendarWidget({
@@ -633,10 +856,10 @@ function WeeklyCalendarWidget({
   getWidgetData: <T, >(widgetId: string, fallback: T) => T
   mergeWidgetData: <T extends Record<string, unknown>>(widgetId: string, partial: Partial<T>, fallback: T) => void
 }) {
-  const data = getWidgetData<WeeklyData>(widgetId, { note: '', items: [] })
+  const data = getWidgetData<WeeklyData>(widgetId, { note: '' })
   const config = getWidgetData<{ showAppleCalendar?: boolean }>(widgetId, { showAppleCalendar: false })
 
-  const update = (partial: Partial<WeeklyData>) => mergeWidgetData<WeeklyData>(widgetId, partial, { note: '', items: [] })
+  const update = (partial: Partial<WeeklyData>) => mergeWidgetData<WeeklyData>(widgetId, partial, { note: '' })
   return <WeeklyCalendar value={data} onChange={update} showAppleCalendar={config.showAppleCalendar} />
 }
 
@@ -805,12 +1028,14 @@ function RecentActivityWidget({ files }: { files: FileInfo[] }) {
 function RelevantFilesWidget({
   files,
   valueId,
+  searchQuery,
   pinned,
   onPin,
   onUnpin,
 }: {
   files: FileInfo[]
   valueId: string
+  searchQuery?: string
   pinned: PinnedItem[]
   onPin: (path: string) => void
   onUnpin: (path: string) => void
@@ -827,11 +1052,11 @@ function RelevantFilesWidget({
   useEffect(() => {
     let active = true
     const load = async () => {
-      const template = getValueTemplate(valueId)
-      if (!template?.searchQuery) return
+      const query = searchQuery?.trim() || getValueTemplate(valueId)?.searchQuery
+      if (!query) return
 
       try {
-        const results = await dbSearchFiles(template.searchQuery)
+        const results = await dbSearchFiles(query)
         if (active && results.length > 0) {
           setMatches(results.slice(0, 6))
         }
@@ -841,17 +1066,17 @@ function RelevantFilesWidget({
     }
     load()
     return () => { active = false }
-  }, [valueId]) // Re-run when value changes
+  }, [searchQuery, valueId]) // Re-run when value changes
 
   const displayFiles = matches.length > 0 ? matches : syncMatches
   const pinnedPaths = useMemo(() => new Set(pinned.filter((p) => p.kind === 'file').map((p) => p.path)), [pinned])
 
   return (
     <UnifiedCard fullHeight>
-      <UnifiedCardHeader icon={FileText} title="Relevant Files" subtitle="Smart matches from your files" />
+      <UnifiedCardHeader icon={FileText} title="Relevant Files" subtitle="Files that match this focus area" />
       {displayFiles.length === 0 ? (
         <div className="text-sm p-4 text-center opacity-60" style={{ color: 'var(--aurora-text-secondary)' }}>
-          Nothing matched yet. Add folders in Settings or use keywords like &quot;tax&quot;, &quot;project&quot;, etc.
+          No files matched yet. Add folders in Settings, or we&apos;ll find files as you work.
         </div>
       ) : (
         <div className="space-y-2">
@@ -876,9 +1101,9 @@ function RelevantFilesWidget({
                   onClick={() => onUnpin(f.path)}
                   className="px-2 py-1 rounded-lg text-xs font-semibold hover:bg-red-500/10 hover:text-red-500 transition-colors"
                   style={{ color: 'var(--aurora-text-secondary)' }}
-                  title="Unpin"
+                  title="Remove from Spotlight"
                 >
-                  Unpin
+                  Unspotlight
                 </button>
               ) : (
                 <button
@@ -886,9 +1111,9 @@ function RelevantFilesWidget({
                   onClick={() => onPin(f.path)}
                   className="px-2 py-1 rounded-lg text-xs font-semibold hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                   style={{ color: 'var(--aurora-text)' }}
-                  title="Pin"
+                  title="Spotlight"
                 >
-                  Pin
+                  Spotlight
                 </button>
               )}
             </div>
@@ -910,7 +1135,7 @@ function PinnedItemsWidget({
 }) {
   const byPath = useMemo(() => new Map(files.map((f) => [f.path, f])), [files])
 
-  const addPinned = async (kind: 'file' | 'folder') => {
+  const addToSpotlight = async (kind: 'file' | 'folder') => {
     let selectedPaths: string[] = []
     try {
       const selected = await open({ directory: kind === 'folder', multiple: true })
@@ -918,7 +1143,7 @@ function PinnedItemsWidget({
         (p): p is string => typeof p === 'string' && p.trim().length > 0
       )
     } catch {
-      const manual = window.prompt(`Paste a ${kind} path to pin:`)
+      const manual = window.prompt(`Paste a ${kind} path to add to Spotlight:`)
       if (manual && manual.trim().length > 0) selectedPaths = [manual.trim()]
     }
 
@@ -944,25 +1169,25 @@ function PinnedItemsWidget({
     <UnifiedCard fullHeight>
       <UnifiedCardHeader
         icon={FileText}
-        title="Pinned"
-        subtitle="Hand-picked files and folders for this value"
+        title="File Spotlight"
+        subtitle="The few files and folders you want close by"
         action={
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => addPinned('file')}
+              onClick={() => addToSpotlight('file')}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold"
               style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(255,255,255,0.22)', color: 'var(--aurora-text)' }}
             >
-              Pin file
+              Add file
             </button>
             <button
               type="button"
-              onClick={() => addPinned('folder')}
+              onClick={() => addToSpotlight('folder')}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold"
               style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(255,255,255,0.22)', color: 'var(--aurora-text)' }}
             >
-              Pin folder
+              Add folder
             </button>
           </div>
         }
@@ -970,7 +1195,7 @@ function PinnedItemsWidget({
 
       {pinned.length === 0 ? (
         <div className="text-sm" style={{ color: 'var(--aurora-text-secondary)' }}>
-          Pin the few things that matter here. You can also pin from “Relevant Files”.
+          Add the few things that matter here. You can also spotlight from “Relevant Files”.
         </div>
       ) : (
         <div className="space-y-2">
@@ -982,36 +1207,42 @@ function PinnedItemsWidget({
             return (
               <div
                 key={`${item.kind}:${item.path}`}
-                className="w-full rounded-xl flex items-center justify-between gap-0 overflow-hidden"
-                style={{ background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(255,255,255,0.22)' }}
+                className="w-full rounded-xl flex items-center gap-3 p-3 group cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5"
+                style={{ 
+                  background: 'rgba(0,0,0,0.04)', 
+                  border: '1px solid rgba(255,255,255,0.18)',
+                }}
+                onClick={() => openFile(item.path)}
+                title={`Click to open: ${item.path}`}
               >
-                <button
-                  type="button"
-                  className="text-left min-w-0 flex-1 px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                  onClick={() => openFile(item.path)}
-                  title={item.path}
-                >
-                  <div className="text-sm font-semibold truncate" style={{ color: 'var(--aurora-text)' }}>
+                {/* File Icon Preview */}
+                <div className="flex-shrink-0 text-2xl opacity-70 group-hover:opacity-100 transition-opacity">
+                  {f ? getFileIcon(f.file_type, { size: 24 }) : <FileText size={24} />}
+                </div>
+                
+                {/* File Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold truncate group-hover:text-current transition-colors" style={{ color: 'var(--aurora-text)' }}>
                     {label}
                   </div>
-                  <div className="text-xs truncate" style={{ color: 'var(--aurora-text-secondary)' }}>
+                  <div className="text-xs truncate mt-0.5" style={{ color: 'var(--aurora-text-secondary)' }}>
                     {meta}
                   </div>
-                </button>
-                <div className="pr-2 pl-1 py-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      removePinned(item)
-                    }}
-                    className="px-2 py-1 rounded-lg text-xs font-semibold hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                    style={{ color: 'var(--aurora-text)' }}
-                    title="Unpin"
-                  >
-                    Remove
-                  </button>
                 </div>
+                
+                {/* Remove Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    removePinned(item)
+                  }}
+                  className="flex-shrink-0 px-2 py-1 rounded-lg text-xs font-semibold hover:bg-red-500/10 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                  style={{ color: 'var(--aurora-text-secondary)' }}
+                  title="Remove from Spotlight"
+                >
+                  Remove
+                </button>
               </div>
             )
           })}
@@ -1039,7 +1270,7 @@ function BrainDumpWidget({ valueId, saved, onChange }: { valueId: string; saved:
 
   return (
     <UnifiedCard fullHeight>
-      <UnifiedCardHeader icon={Scroll} title="Brain Dump" subtitle="No structure required" />
+      <UnifiedCardHeader icon={Scroll} title="Brain Dump" subtitle="A safe place to process thoughts—no structure needed" />
       <textarea
         value={draft}
         onChange={(e) => {

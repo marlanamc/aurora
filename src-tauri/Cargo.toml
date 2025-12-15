@@ -62,3 +62,7 @@ codegen-units = 1    # Better optimization (slower compile, faster runtime)
 lto = true           # Link-Time Optimization - makes binary smaller and faster
 opt-level = "z"      # Optimize for size
 strip = true         # Remove debug symbols from binary
+
+# Suppress noisy warnings during build
+[lints.rust]
+unexpected_cfgs = { level = "allow" }

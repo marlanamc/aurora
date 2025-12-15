@@ -33,18 +33,11 @@ Aurora automatically resurfacing files you might have forgotten:
 - **Seasonal Echo**: Files from similar times of year
 - **Random Delight**: Surprise files to spark momentum
 
-### Core Values
+### Focus Areas
 
-Organize your work around what matters to you:
-- **Projects**: Work and professional files
-- **Body**: Health and wellness
-- **People**: Relationships and connections
-- **Home Base**: Personal space and comfort
-- **Money Admin**: Financial documents
-- **Curiosity**: Learning and exploration
-- **Reset**: Support and recovery
+Aurora uses Focus Areas as gentle “buckets” for what matters right now. On first launch, you can pick a starter template (12 options) and customize it over time.
 
-You can customize these in Settings → Core Values.
+You can customize these in Settings → Focus Areas.
 
 ### Global Search
 
@@ -67,10 +60,10 @@ Access settings by clicking the Settings icon in the top-right corner.
 - **Theme**: Visual theme selection
 - **Theme Mode**: Light, Dark, or System preference
 
-### Core Values
-- Add, edit, or archive your core values
+### Focus Areas
+- Add, edit, or archive your focus areas
 - Customize icons and colors
-- Set up value-specific widgets
+- Set up area-specific widgets
 
 ## macOS Permissions
 
@@ -115,7 +108,7 @@ Aurora needs certain permissions to work:
 ### File Organization
 - Use Finder tags - Aurora reads them automatically
 - Files are organized by meaning, not just folders
-- Use Core Values to group related work
+- Use Focus Areas to group related work
 
 ### Performance
 - Aurora indexes files in the background
@@ -160,7 +153,7 @@ Aurora needs certain permissions to work:
 
 Aurora is designed to grow with you. As you use it:
 - Files become more meaningful through resurfacing
-- Core Values help you stay aligned with what matters
+  - Focus Areas help you stay aligned with what matters
 - The visual memory layer gets stronger over time
 
 Enjoy your new way of seeing and remembering your digital world! ✨

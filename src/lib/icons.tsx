@@ -36,6 +36,7 @@ import {
   Gift,
   LayoutGrid,
   Plus,
+  Minus,
   Search,
   RefreshCw,
   Settings,
@@ -89,6 +90,7 @@ import {
   ArrowRight,
   AlertCircle,
   ExternalLink,
+  Eye,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -327,6 +329,7 @@ export {
   Gift,
   LayoutGrid,
   Plus,
+  Minus,
   Search,
   RefreshCw,
   Settings,
@@ -380,4 +383,5 @@ export {
   ArrowRight,
   AlertCircle,
   ExternalLink,
+  Eye,
 }

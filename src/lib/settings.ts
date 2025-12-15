@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { RESURFACING_THEMES, type ThemeId } from '@/lib/resurfacing-themes'
 import { VALUE_ICON_OPTIONS, type ValueIconId } from '@/lib/value-icons'
 import { getValueTemplate } from '@/lib/value-templates'
@@ -25,6 +25,8 @@ export type AuroraSettings = {
   valueLayouts: Record<string, ValueLayout>
   brainDumps: Record<string, string>
   widgetData: Record<string, unknown>
+  focusAreaActivity: Record<string, number> // Maps focus area ID to last activity timestamp
+  showSmartTagging: boolean // Whether to show automatic file tagging suggestions
 }
 
 const SETTINGS_STORAGE_KEY = 'aurora-settings-v1'
@@ -35,19 +37,13 @@ const DEFAULT_SETTINGS: AuroraSettings = {
   showRememberThis: true,
   scanSources: [],
   pinnedByValue: {},
-  coreValues: [
-    { id: 'work', name: 'Projects', iconId: 'target' },
-    { id: 'health', name: 'Body', iconId: 'flame' },
-    { id: 'relationships', name: 'People', iconId: 'heart' },
-    { id: 'home', name: 'Home Base', iconId: 'doorOpen' },
-    { id: 'money', name: 'Money Admin', iconId: 'dollarSign' },
-    { id: 'learning', name: 'Curiosity', iconId: 'scale' },
-    { id: 'support', name: 'Reset', iconId: 'dove' },
-  ],
+  coreValues: [],
   archivedValueIds: [],
   valueLayouts: {},
   brainDumps: {},
   widgetData: {},
+  focusAreaActivity: {},
+  showSmartTagging: true,
 }
 
 function readStoredSettings(): AuroraSettings | null {
@@ -138,8 +134,12 @@ function readStoredSettings(): AuroraSettings | null {
       parsed.brainDumps && typeof parsed.brainDumps === 'object' ? (parsed.brainDumps as Record<string, string>) : {}
     const widgetData =
       parsed.widgetData && typeof parsed.widgetData === 'object' ? (parsed.widgetData as Record<string, unknown>) : {}
+    const focusAreaActivity =
+      parsed.focusAreaActivity && typeof parsed.focusAreaActivity === 'object' ? (parsed.focusAreaActivity as Record<string, number>) : {}
+    const showSmartTagging =
+      typeof parsed.showSmartTagging === 'boolean' ? parsed.showSmartTagging : true
 
-    return { displayName, themeId, showRememberThis, scanSources, pinnedByValue, coreValues, archivedValueIds, valueLayouts, brainDumps, widgetData }
+    return { displayName, themeId, showRememberThis, scanSources, pinnedByValue, coreValues, archivedValueIds, valueLayouts, brainDumps, widgetData, focusAreaActivity, showSmartTagging }
   } catch {
     return null
   }
@@ -157,25 +157,35 @@ export function useAuroraSettings() {
     setHydrated(true)
   }, [])
 
-  useEffect(() => {
-    if (!hydrated || typeof window === 'undefined') return
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
-  }, [hydrated, settings])
+  // Persist synchronously on updates so quick navigation doesn't lose changes.
+  const updateSettings = useCallback(
+    (partial: Partial<AuroraSettings>) => {
+      setSettings((prev) => {
+        const next = { ...prev, ...partial }
+        if (hydrated && typeof window !== 'undefined') {
+          localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(next))
+        }
+        return next
+      })
+    },
+    [hydrated]
+  )
 
-  const api = useMemo(() => {
-    const updateSettings = (partial: Partial<AuroraSettings>) => {
-      setSettings((prev) => ({ ...prev, ...partial }))
+  const resetSettings = useCallback(() => {
+    setSettings(DEFAULT_SETTINGS)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(SETTINGS_STORAGE_KEY)
     }
-
-    const resetSettings = () => {
-      setSettings(DEFAULT_SETTINGS)
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(SETTINGS_STORAGE_KEY)
-      }
-    }
-
-    return { updateSettings, resetSettings }
   }, [])
 
-  return [settings, api.updateSettings, api.resetSettings] as const
+  const recordFocusAreaActivity = useCallback((focusAreaId: string) => {
+    updateSettings({
+      focusAreaActivity: {
+        ...settings.focusAreaActivity,
+        [focusAreaId]: Date.now()
+      }
+    })
+  }, [settings.focusAreaActivity, updateSettings])
+
+  return [settings, updateSettings, resetSettings, recordFocusAreaActivity] as const
 }

@@ -12,6 +12,10 @@ type EnergyLog = {
   timeOfDay: 'morning' | 'afternoon' | 'evening'
 }
 
+type EnergyTrackerData = {
+  logs: EnergyLog[]
+}
+
 export function EnergyTrackerWidget({
   theme,
   widgetId,
@@ -23,7 +27,11 @@ export function EnergyTrackerWidget({
   getWidgetData: <T,>(id: string, fallback: T) => T
   mergeWidgetData: <T extends Record<string, unknown>>(id: string, partial: Partial<T>, fallback: T) => void
 }) {
-  const logs = getWidgetData<EnergyLog[]>(widgetId, [])
+  const raw = getWidgetData<EnergyTrackerData | EnergyLog[]>(widgetId, { logs: [] } as EnergyTrackerData)
+  const logs = useMemo<EnergyLog[]>(() => {
+    if (Array.isArray(raw)) return raw
+    return Array.isArray(raw.logs) ? raw.logs : []
+  }, [raw])
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
 
   const getTimeOfDay = (): 'morning' | 'afternoon' | 'evening' => {
@@ -68,7 +76,7 @@ export function EnergyTrackerWidget({
       newLog,
     ].slice(-30) // Keep last 30 logs
 
-    mergeWidgetData<{ logs: EnergyLog[] }>(widgetId, { logs: updatedLogs }, { logs: [] })
+    mergeWidgetData<EnergyTrackerData>(widgetId, { logs: updatedLogs }, { logs: [] })
     setSelectedLevel(null)
   }
 

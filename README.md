@@ -67,9 +67,9 @@ Aurora can display your **today** events from Apple Calendar inside the app. The
 
 These aren’t included in MVP but guide the design philosophy.
 
-### **• Core Values Mapping**
+### **• Focus Areas Mapping**
 
-Tie daily micro-actions to values like *Financial Stability*, *Law School*, *Peace*, or *Leaving Hospitality*.
+Tie daily micro-actions to focus areas/values like *Financial Stability*, *Law School*, *Peace*, or *Leaving Hospitality*.
 
 ### **• Application Heat Map**
 

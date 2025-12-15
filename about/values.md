@@ -1,9 +1,9 @@
-# Core Values in Aurora OS (Demo Defaults)
+# Focus Areas in Aurora OS (Starter Example)
 
-Aurora OS organizes information and actions around **values** rather than folders or task lists.
-Values are intentionally ADHD-friendly: **high-visual**, **low-friction**, and **shame-free**.
+Aurora OS organizes information and actions around **focus areas** rather than folders or task lists.
+Focus areas are intentionally ADHD-friendly: **high-visual**, **low-friction**, and **shame-free**.
 
-These are example defaults for a typical neurodivergent user. Everything is customizable in Settings (names, icons, add/remove values, add/remove widgets).
+This document describes the “Classic Aurora” starter template. Everything is customizable in Settings (names, icons, add/remove areas, add/remove widgets).
 
 ---
 

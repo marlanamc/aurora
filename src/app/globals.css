@@ -2,7 +2,155 @@
 @tailwind components;
 @tailwind utilities;
 
-/* macOS-native styling */
+/* React Grid Layout Styles */
+.react-grid-layout {
+  position: relative;
+  transition: height 200ms ease;
+}
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top;
+}
+.react-grid-item img {
+  pointer-events: none;
+  user-select: none;
+}
+.react-grid-item.cssTransforms {
+  transition-property: transform;
+}
+.react-grid-item.resizing {
+  z-index: 100;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+.react-grid-item.react-grid-placeholder {
+  background: rgba(128, 128, 128, 0.1);
+  border-radius: 12px;
+  opacity: 0.5;
+  z-index: 2;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -o-user-select: none;
+  user-select: none;
+}
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 100;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+}
+/* React Resizable Styles */
+.react-resizable {
+  position: relative;
+}
+
+/* Resize handles (react-grid-layout v2) */
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  z-index: 50;
+  opacity: 0;
+  touch-action: none;
+}
+
+/* Make handles easy to grab while editing */
+.widget-grid-editing .react-grid-item > .react-resizable-handle {
+  opacity: 1;
+}
+
+/* Drag mode styles */
+.drag-mode-active {
+  /* Add subtle backdrop filter during drag mode */
+}
+
+.drag-mode-active .widget-editing {
+  /* Subtle shadow and lift effect for widgets in edit mode */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.dark .drag-mode-active .widget-editing {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Global drag state styling */
+.dragging-widget {
+  cursor: grabbing !important;
+}
+
+.dragging-widget * {
+  pointer-events: none;
+}
+
+.dragging-widget .drag-handle {
+  cursor: grabbing !important;
+}
+
+/* React Grid Layout customizations */
+.react-grid-layout {
+  position: relative;
+}
+
+.react-grid-item {
+  transition: all 0.2s ease;
+}
+
+.drag-mode-active .react-grid-item {
+  transition: none;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px dashed rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  z-index: 10;
+}
+
+.dark .react-grid-item.react-grid-placeholder {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+/* Visual grip */
+.react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dark .react-grid-item > .react-resizable-handle::after {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Corner + edge handle hit-areas */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se {
+  right: 0;
+  bottom: 0;
+  width: 36px;
+  height: 36px;
+  cursor: se-resize;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e {
+  right: 0;
+  top: 50%;
+  width: 14px;
+  height: 56px;
+  margin-top: -28px;
+  cursor: ew-resize;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s {
+  bottom: 0;
+  left: 50%;
+  width: 56px;
+  height: 14px;
+  margin-left: -28px;
+  cursor: ns-resize;
+}
+
+/* Native macOS vibrancy and blur effects */
 :root {
   /* Native macOS vibrancy and blur effects */
   --macos-blur: blur(40px);
@@ -95,10 +243,8 @@ button,
   background: var(--aurora-glass-bg, rgba(255, 255, 255, 0.65));
   border: var(--aurora-glass-border, 1px solid rgba(255, 255, 255, 0.3));
   box-shadow: var(--aurora-glass-shadow, 0 8px 32px rgba(0, 0, 0, 0.08));
-  backdrop-filter: var(--aurora-glass-backdrop, blur(16px) saturate(180%));
-  -webkit-backdrop-filter: var(--aurora-glass-backdrop, blur(16px) saturate(180%));
-  /* Force GPU layer for glass elements */
-  transform: translate3d(0, 0, 0);
+  backdrop-filter: var(--aurora-glass-backdrop, blur(8px) saturate(120%));
+  -webkit-backdrop-filter: var(--aurora-glass-backdrop, blur(8px) saturate(120%));
 }
 
 .liquid-glass::before {
@@ -170,4 +316,30 @@ button,
 
 .soft-glow:hover {
   box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+}
+
+/* Modern color picker styling */
+.react-colorful {
+  width: 100% !important;
+  height: 150px !important;
+}
+
+.react-colorful__saturation {
+  border-radius: 6px 6px 0 0;
+}
+
+.react-colorful__hue {
+  border-radius: 0 0 6px 6px;
+  height: 20px !important;
+}
+
+.react-colorful__pointer {
+  width: 16px !important;
+  height: 16px !important;
+  border: 2px solid #fff !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.dark .react-colorful__pointer {
+  border-color: #1f2937 !important;
 }

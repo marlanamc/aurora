@@ -12,6 +12,10 @@ type SearchHistoryItem = {
   timestamp: number
 }
 
+type QuickSearchData = {
+  history: SearchHistoryItem[]
+}
+
 export function QuickSearchWidget({
   theme,
   widgetId,
@@ -30,7 +34,11 @@ export function QuickSearchWidget({
   const [isSearching, setIsSearching] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
 
-  const history = getWidgetData<SearchHistoryItem[]>(widgetId, [])
+  const raw = getWidgetData<QuickSearchData | SearchHistoryItem[]>(widgetId, { history: [] } as QuickSearchData)
+  const history = useMemo<SearchHistoryItem[]>(() => {
+    if (Array.isArray(raw)) return raw
+    return Array.isArray(raw.history) ? raw.history : []
+  }, [raw])
 
   const recentSearches = useMemo(() => {
     return [...history]
@@ -57,7 +65,7 @@ export function QuickSearchWidget({
         { query: searchQuery, timestamp: Date.now() },
       ].slice(-10) // Keep last 10
       
-      mergeWidgetData<{ history: SearchHistoryItem[] }>(widgetId, { history: newHistory }, { history: [] })
+      mergeWidgetData<QuickSearchData>(widgetId, { history: newHistory }, { history: [] })
     } catch (error) {
       console.error('Search failed:', error)
       setResults([])
@@ -85,7 +93,7 @@ export function QuickSearchWidget({
   }
 
   const clearHistory = () => {
-    mergeWidgetData(widgetId, { history: [] }, { history: [] })
+    mergeWidgetData<QuickSearchData>(widgetId, { history: [] }, { history: [] })
   }
 
   return (
@@ -93,7 +101,7 @@ export function QuickSearchWidget({
       <UnifiedCardHeader
         icon={Search}
         title="Quick Search"
-        subtitle="Find files fast"
+        subtitle="Search across all your files"
         action={
           recentSearches.length > 0 && (
             <button
@@ -124,7 +132,7 @@ export function QuickSearchWidget({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setShowHistory(true)}
-            placeholder="Search files..."
+            placeholder="What are you looking for?"
             className="w-full pl-10 pr-10 py-2.5 rounded-xl text-sm"
             style={{
               background: theme.components.card.background,

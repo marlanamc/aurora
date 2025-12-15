@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, type HTMLMotionProps } from 'framer-motion'
+import { motion, type HTMLMotionProps, useReducedMotion } from 'framer-motion'
 import { type ReactNode } from 'react'
 
 interface UnifiedCardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
@@ -18,6 +18,7 @@ export function UnifiedCard({
   className = '',
   ...motionProps
 }: UnifiedCardProps) {
+  const prefersReducedMotion = useReducedMotion()
   const paddingClasses = {
     sm: 'p-3',
     md: 'p-4',
@@ -47,13 +48,12 @@ export function UnifiedCard({
           ['--aurora-glass-bg' as any]: glassBg,
           ['--aurora-glass-border' as any]: 'var(--aurora-card-border, 1px solid rgba(255, 255, 255, 0.28))',
           ['--aurora-glass-shadow' as any]: 'var(--aurora-card-shadow, 0 18px 55px rgba(0, 0, 0, 0.14))',
-          willChange: 'transform',
         } as any
       }
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      whileHover={{ y: -1 }}
+      initial={false}
+      animate={false}
+      transition={{ duration: 0 }}
+      whileHover={prefersReducedMotion ? undefined : undefined}
       {...motionProps}
     >
       {children}
@@ -72,24 +72,16 @@ export function UnifiedCardHeader({
   icon?: import('@/lib/icons').IconComponent
   action?: ReactNode
 }) {
+  const prefersReducedMotion = useReducedMotion()
+  
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           {IconComponent && (
-            <motion.div
-              style={{ color: 'var(--aurora-text, #374151)', willChange: 'transform' }}
-              animate={{
-                rotate: [0, 5, -5, 0],
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            >
+            <div style={{ color: 'var(--aurora-text, #374151)' }}>
               <IconComponent size={24} strokeWidth={2} />
-            </motion.div>
+            </div>
           )}
           <h2 className="text-lg font-bold" style={{ color: 'var(--aurora-text, #111827)' }}>
             {title}

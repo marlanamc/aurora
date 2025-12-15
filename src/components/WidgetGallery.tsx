@@ -39,12 +39,16 @@ const WIDGET_EXAMPLES: Record<WidgetType, { preview: string; useCase?: string }>
         useCase: 'Organize files by how they make you feel'
     },
     'pinned-items': {
-        preview: 'Quick access to your most important files',
-        useCase: 'Keep frequently used folders and files at hand'
+        preview: 'Quick access to a small set of spotlighted items',
+        useCase: 'Keep a handful of key folders/files close by'
     },
     'relevant-files': {
-        preview: 'Smart file matches based on your core values',
+        preview: 'Smart file matches based on your focus areas',
         useCase: 'See files related to your current focus area'
+    },
+    'links': {
+        preview: 'A curated list of pretty link shortcuts',
+        useCase: 'Keep docs, dashboards, and bookmarks close by'
     },
     'brain-dump': {
         preview: 'Free-form text area for thoughts and ideas',
@@ -97,6 +101,10 @@ const WIDGET_EXAMPLES: Record<WidgetType, { preview: string; useCase?: string }>
     'notebook': {
         preview: 'Folders styled as colorful notebook covers',
         useCase: 'Quick access to your favorite folders'
+    },
+    'title': {
+        preview: 'Customizable aesthetic title with fonts, colors, and alignment',
+        useCase: 'Create beautiful page headers and section titles'
     },
 }
 
@@ -330,15 +338,6 @@ function WidgetCard({ widget, theme, settings, onAdd, isExpanded, onToggleExpand
                         >
                             <Icon size={24} strokeWidth={2} />
                         </div>
-                        <span
-                            className="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider"
-                            style={{
-                                background: theme.colors.surfaceHover,
-                                color: theme.colors.textSecondary
-                            }}
-                        >
-                            {widget.defaultSpan === 2 ? 'Wide' : 'Narrow'}
-                        </span>
                     </div>
 
                     <h3 className="text-lg font-bold mb-1" style={{ color: theme.colors.text }}>

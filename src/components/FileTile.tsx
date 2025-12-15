@@ -3,12 +3,31 @@
 import { motion } from 'framer-motion'
 import type { FileInfo } from '@/lib/tauri'
 import { getFileIcon, formatFileSize, formatDate, openFile } from '@/lib/tauri'
+import { getBestTagSuggestion } from '@/lib/smartFileTagging'
+import { useAuroraSettings } from '@/lib/settings'
+import { VALUE_ICON_OPTIONS } from '@/lib/value-icons'
+import { Sparkles } from '@/lib/icons'
 
 interface FileTileProps {
   file: FileInfo
+  showSmartTags?: boolean
 }
 
-export function FileTile({ file }: FileTileProps) {
+export function FileTile({ file, showSmartTags = true }: FileTileProps) {
+  const [settings] = useAuroraSettings()
+
+  // Get smart tag suggestion
+  const smartSuggestion = showSmartTags && settings.showSmartTagging ?
+    getBestTagSuggestion(
+      {
+        name: file.name,
+        path: file.path,
+        extension: file.file_type ? `.${file.file_type}` : undefined,
+        size: Number(file.size),
+        modifiedAt: file.modified_at
+      },
+      settings.coreValues || []
+    ) : null
   const handleClick = async () => {
     try {
       await openFile(file.path)
@@ -43,6 +62,16 @@ export function FileTile({ file }: FileTileProps) {
           <p>{formatFileSize(file.size)}</p>
           <p>{formatDate(file.modified_at)}</p>
         </div>
+
+        {/* Smart Tag Suggestion */}
+        {smartSuggestion && smartSuggestion.confidence > 0.4 && (
+          <div className="mt-2 flex items-center gap-1">
+            <Sparkles size={10} className="text-yellow-500" />
+            <div className="px-2 py-0.5 text-xs rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">
+              Suggest: {settings.coreValues?.find(v => v.id === smartSuggestion.focusAreaId)?.name}
+            </div>
+          </div>
+        )}
 
         {/* Finder Tags (if any) */}
         {file.finder_tags.length > 0 && (
